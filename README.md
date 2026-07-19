@@ -46,12 +46,22 @@ node scripts/run.mjs hu-hatos   # nur ein System
 ```
 
 ## Aktuell registriert
-| key | System | Quelle | Status |
-|---|---|---|---|
-| `hu-hatos` | Ungarn Hatoslottó 6/45 | szerencsejatek.hu CSV | Vollhistorie ab 1988 (1829), Probe: GitHub-IP kommt durch |
-| `de-6-49` | Deutschland 6 aus 49 | daowa89/lottery-archive | Vollarchiv ab 1955 (5030) |
-| `euromillions` | EuroMillionen 5/50 + 2 | daowa89/lottery-archive | ab 2004 (1958), inkl. Sterne |
+| key | System | Quelle | Draws | Status |
+|---|---|---|---|---|
+| `at-6-45` | Österreich 6/45 | win2day (Jahres-CSV) + Baseline | 3658 | ✅ |
+| `de-6-49` | Deutschland 6/49 | daowa89 | 5030 | ✅ |
+| `de-6-49-sz` | Deutschland 6/49 + Superzahl | daowa89 (SZ 0–9 → 1–10) | 3144 | ✅ |
+| `euromillions` | EuroMillionen 5/50 + 2 | daowa89 | 1958 | ✅ |
+| `pl-lotto` | Polen 6/49 | wynikilotto (Vollarchiv) | 6424 | ✅ |
+| `hu-hatos` | Ungarn Hatoslottó 6/45 | szerencsejatek.hu | 1829 | ✅ Probe: GitHub-IP OK |
+| `gr-tzoker` | Griechenland Tzoker 5/45 + Joker | OPAP-API + Baseline | 2675 | ⚠️ probe-pending (OPAP 403 von manchen IPs; Baseline hosted) |
 
-Kandidaten/hart: `fr-loto` (FDJ — offizielle ZIP endet 2024-07, aktuelle Ziehungen hinter dynamischem
-API-Call mit Doc-ID → Reverse-Engineering nötig), `es-*` (Akamai blockt auch GitHub/Cloud-IPs → Proxy nötig),
-sowie perspektivisch AT/PL/GR zentral hierher.
+**GR-Hinweis:** OPAP/Akamai blockt manche Datacenter-IPs. Der Runner überspringt bei 403 und
+behält die Baseline. Ob der GitHub-Runner durchkommt, zeigt der erste `probe`-Lauf. Falls dauerhaft
+geblockt: GR bleibt auf Supabase-OPAP (einziges System dort) oder braucht Proxy.
+
+**Nicht im Mirror (keine aktuelle Quelle existiert):** CH 6/42 (nirgends offen), EJ EuroJackpot
+(alte Quelle endete 2025-02). Bleiben statische Lokaldateien bis eine Quelle gefunden ist.
+
+**Hart/Kandidaten:** `fr-loto` (FDJ — offizielle ZIP endet 2024-07, aktuell hinter dynamischem
+API-Call mit Doc-ID → Reverse-Engineering), `es-*` (Akamai blockt auch GitHub/Cloud-IPs → Proxy).
