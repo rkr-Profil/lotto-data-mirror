@@ -13,7 +13,11 @@ export const meta = {
   key: "be-lotto",
   label: "Belgien Lotto 6/45",
   url: `${BASE}?game-names=Lotto&status=PAYABLE&previous-draws=3`,
-  kind: "json"
+  kind: "json",
+  // Probe 2026-07-19: GitHub-Azure-IP wird vom APIM-Gateway auf Netzwerkebene blockiert
+  // ("fetch failed"). Bleibt statisch (committete 3502-Baseline) → optional, damit die Action
+  // nicht rot wird. Auto-Update bräuchte einen Proxy/EU-Runner.
+  optional: true
 };
 
 export async function fetchDraws({ fetchText }) {
