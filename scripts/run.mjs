@@ -27,12 +27,14 @@ import * as esBonoloto from "./fetchers/es-bonoloto.mjs";
 import * as lvLatlotoF from "./fetchers/lv-latloto.mjs";
 import * as eeVikinglotto from "./fetchers/ee-vikinglotto.mjs";
 import * as beLotto from "./fetchers/be-lotto.mjs";
+import * as nlLotto from "./fetchers/nl-lotto.mjs";
+import * as ptTotolotoF from "./fetchers/pt-totoloto.mjs";
 // … weitere Fetcher hier importieren und in FETCHERS eintragen:
 // import * as frLoto from "./fetchers/fr-loto.mjs";  // FDJ-API, Reverse-Engineering nötig
 
 const FETCHERS = [
   huHatos, de649, euromillions, at645, plLotto, de649sz, grTzoker,
-  esPrimitiva, esBonoloto, lvLatlotoF, eeVikinglotto, beLotto
+  esPrimitiva, esBonoloto, lvLatlotoF, eeVikinglotto, beLotto, nlLotto, ptTotolotoF
 ];
 
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -79,7 +81,8 @@ for (const mod of FETCHERS) {
       const html = looksLikeHtml(r.text);
       console.log(`[${meta.key}] status=${r.status} type=${r.ct} bytes=${r.bytes} html=${html ? "JA (BLOCK?)" : "nein"}`);
       console.log(`  sample: ${r.text.slice(0, 160).replace(/\s+/g, " ")}`);
-      if (html || r.status !== 200) fail("Probe: Block/Non-200");
+      // kind:"html" liefert absichtlich HTML → nicht als Block werten.
+      if ((meta.kind !== "html" && html) || r.status !== 200) fail("Probe: Block/Non-200");
       continue;
     }
 

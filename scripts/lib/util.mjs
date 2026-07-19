@@ -215,6 +215,37 @@ export function beJson(text) {
   return draws;
 }
 
+/**
+ * NL Lotto 6/45 — nederlandseloterij.nl results/{date}-JSON. Objekt mit isXlDraw:false =
+ * reguläre Ziehung: winningNumbers.numbers (6 Zahlen 1..45) + draw.drawDate. Reservezahl verworfen.
+ */
+export function nlResult(json) {
+  const results = Array.isArray(json?.results) ? json.results : [];
+  const std = results.find((r) => r && r.isXlDraw === false);
+  if (!std || !std.winningNumbers) return null;
+  const nums = (std.winningNumbers.numbers || []).map(Number);
+  if (nums.length !== 6 || !inRange(nums, 6, 45)) return null;
+  const date = std.draw && std.draw.drawDate;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date))) return null;
+  return { d: date, n: nums.slice().sort((a, b) => a - b) };
+}
+
+/**
+ * PT Totoloto 5/49 + 1 Número da Sorte(1..13) — jogossantacasa.pt HTML (server-gerendert).
+ * Datum aus "Data do Sorteio - dd/mm/yyyy", Chave aus erstem "<li>N N N N N + N</li>".
+ */
+export function ptTotoloto(html) {
+  const dm = html.match(/Data do Sorteio\s*-\s*(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!dm) return null;
+  const date = `${dm[3]}-${dm[2]}-${dm[1]}`;
+  const nm = html.match(/<li>\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\+\s*(\d+)\s*<\/li>/);
+  if (!nm) return null;
+  const nums = [nm[1], nm[2], nm[3], nm[4], nm[5]].map(Number);
+  const sorte = Number(nm[6]);
+  if (!inRange(nums, 5, 49) || sorte < 1 || sorte > 13) return null;
+  return { d: date, n: nums.slice().sort((a, b) => a - b), e: [sorte] };
+}
+
 // "YYYY.MM.DD." (HU) → ISO
 export function parseDottedYmd(s) {
   if (!s) return null;
