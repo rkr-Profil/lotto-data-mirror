@@ -63,6 +63,7 @@ function loadExisting(key) {
 }
 
 let hadError = false;
+const report = []; // je System { key, ok, added?, total?, optional? } — für die Handy-Meldung
 
 for (const mod of FETCHERS) {
   const { meta, parse } = mod;
@@ -73,6 +74,7 @@ for (const mod of FETCHERS) {
   const fail = (msg) => {
     console.error(`[${meta.key}] ${msg}${meta.optional ? " (optional — kein Fehler)" : ""}`);
     if (!meta.optional) hadError = true;
+    report.push({ key: meta.key, ok: false, optional: !!meta.optional });
   };
 
   try {
@@ -105,9 +107,25 @@ for (const mod of FETCHERS) {
     const { merged, added } = mergeDraws(existing, fresh);
     writeFileSync(join(DATA_DIR, `${meta.key}.json`), JSON.stringify(merged));
     console.log(`[${meta.key}] OK — ${fresh.length} geparst, ${added} neu, ${merged.length} gesamt (${merged[0]?.d} … ${merged[merged.length - 1]?.d})`);
+    report.push({ key: meta.key, ok: true, added, total: merged.length });
   } catch (e) {
     fail(`FEHLER: ${e.message}`);
   }
+}
+
+// ── Handy-Zusammenfassung schreiben (nur echte Läufe) ────────────────────
+// run-summary.txt wird vom Workflow-Notify-Schritt an einen Push-Dienst geschickt.
+if (!probeOnly && report.length) {
+  const ok = report.filter((r) => r.ok);
+  const failed = report.filter((r) => !r.ok);
+  const withNew = ok.filter((r) => r.added > 0).map((r) => `${r.key}+${r.added}`);
+  const day = new Date().toISOString().slice(0, 10);
+  const lines = [`🎰 Lucky-Space ${day} — ${ok.length}/${report.length} Systeme geholt`];
+  lines.push(withNew.length ? `🆕 ${withNew.join(" · ")}` : "🆕 keine neuen Ziehungen");
+  if (failed.length) lines.push(`⚠️ nicht geholt: ${failed.map((r) => r.key + (r.optional ? " (optional)" : "")).join(", ")}`);
+  const summary = lines.join("\n");
+  writeFileSync(join(__dir, "..", "run-summary.txt"), summary);
+  console.log("\n" + summary);
 }
 
 // Probe soll nicht die Action rot färben; echte Läufe schon (für Alerting), aber
