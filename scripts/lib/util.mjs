@@ -191,6 +191,30 @@ export function lvLatloto(html, hiMain = 38) {
   return draws;
 }
 
+/**
+ * BE Lotto 6/45 — Nationale Loterij APIM (apim.prd.natlot.be) JSON.
+ * draws[]: .drawTime = Epoch-ms; .results[] mit drawType "normal" (6 Hauptzahlen, .primary
+ * als Strings 1..45) und "bonus" (1 Bonusball). Wir nehmen die 6 Hauptzahlen (Bonus verworfen,
+ * da aus demselben Pool → passt nicht ins Extra-Pool-Modell).
+ */
+export function beJson(text) {
+  const draws = [];
+  let parsed;
+  try { parsed = JSON.parse(text); } catch { return []; }
+  const arr = Array.isArray(parsed?.draws) ? parsed.draws : (Array.isArray(parsed) ? parsed : []);
+  for (const d of arr) {
+    const results = Array.isArray(d?.results) ? d.results : [];
+    const normal = results.find((r) => r.drawType === "normal");
+    if (!normal || !Array.isArray(normal.primary)) continue;
+    const nums = normal.primary.map(Number);
+    if (nums.length !== 6 || !inRange(nums, 6, 45)) continue;
+    const ms = Number(d.drawTime);
+    if (!Number.isFinite(ms) || ms <= 0) continue;
+    draws.push({ d: new Date(ms).toISOString().slice(0, 10), n: nums.slice().sort((a, b) => a - b) });
+  }
+  return draws;
+}
+
 // "YYYY.MM.DD." (HU) → ISO
 export function parseDottedYmd(s) {
   if (!s) return null;
