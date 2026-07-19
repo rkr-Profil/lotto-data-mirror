@@ -10,7 +10,11 @@ export const meta = {
   key: "gr-tzoker",
   label: "Griechenland Tzoker 5/45 + Joker",
   url: "https://api.opap.gr/draws/v3.0/5104/last/100",
-  kind: "json"
+  kind: "json",
+  // OPAP geo-blockt US/Datacenter-IPs (403). Darf die Action NICHT rot färben; wird trotzdem
+  // bei jedem Lauf probiert — kommt GitHub je durch, committet es automatisch. Bis dahin
+  // liest die App GR frisch aus Supabase-EU (nicht aus MIRROR_MAP).
+  optional: true
 };
 
 export function parse(text) {

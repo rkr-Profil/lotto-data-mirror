@@ -58,6 +58,13 @@ for (const mod of FETCHERS) {
   const { meta, parse } = mod;
   if (onlyKeys.length && !onlyKeys.includes(meta.key)) continue;
 
+  // optional-Systeme (z. B. GR: OPAP geo-blockt Datacenter-IPs) dürfen die Action nicht
+  // rot färben — Fehler werden geloggt, setzen aber hadError nur bei Pflicht-Systemen.
+  const fail = (msg) => {
+    console.error(`[${meta.key}] ${msg}${meta.optional ? " (optional — kein Fehler)" : ""}`);
+    if (!meta.optional) hadError = true;
+  };
+
   try {
     const r = await fetchText(meta.url);
 
@@ -65,23 +72,22 @@ for (const mod of FETCHERS) {
       const html = looksLikeHtml(r.text);
       console.log(`[${meta.key}] status=${r.status} type=${r.ct} bytes=${r.bytes} html=${html ? "JA (BLOCK?)" : "nein"}`);
       console.log(`  sample: ${r.text.slice(0, 160).replace(/\s+/g, " ")}`);
-      if (html || r.status !== 200) hadError = true;
+      if (html || r.status !== 200) fail("Probe: Block/Non-200");
       continue;
     }
 
-    if (r.status !== 200) { console.error(`[${meta.key}] HTTP ${r.status} — übersprungen`); hadError = true; continue; }
-    if (looksLikeHtml(r.text)) { console.error(`[${meta.key}] HTML statt Daten (IP-Block?) — übersprungen, Datei bleibt unangetastet`); hadError = true; continue; }
+    if (r.status !== 200) { fail(`HTTP ${r.status} — übersprungen`); continue; }
+    if (looksLikeHtml(r.text)) { fail("HTML statt Daten (IP-Block?) — übersprungen, Datei bleibt unangetastet"); continue; }
 
     const fresh = parse(r.text);
-    if (fresh.length === 0) { console.error(`[${meta.key}] Parser fand 0 Ziehungen — übersprungen`); hadError = true; continue; }
+    if (fresh.length === 0) { fail("Parser fand 0 Ziehungen — übersprungen"); continue; }
 
     const existing = loadExisting(meta.key);
     const { merged, added } = mergeDraws(existing, fresh);
     writeFileSync(join(DATA_DIR, `${meta.key}.json`), JSON.stringify(merged));
     console.log(`[${meta.key}] OK — ${fresh.length} geparst, ${added} neu, ${merged.length} gesamt (${merged[0]?.d} … ${merged[merged.length - 1]?.d})`);
   } catch (e) {
-    console.error(`[${meta.key}] FEHLER: ${e.message}`);
-    hadError = true;
+    fail(`FEHLER: ${e.message}`);
   }
 }
 
