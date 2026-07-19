@@ -140,6 +140,57 @@ export function opapJson(text, { nMain = 5, hiMain = 45, nExtra = 1, hiExtra = 2
   return draws;
 }
 
+// "D/MM/YYYY" (ES lotoideas, Tag teils 1-stellig) → ISO
+export function parseSlashDmy(s) {
+  const m = String(s).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const d = +m[1], mo = +m[2];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${m[3]}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/**
+ * ES lotoideas Google-Sheets-CSV: FECHA,z1..zN,COMP.,R.[,JOKER]
+ * Datum Spalte 0 (D/MM/YYYY), die nMain Hauptzahlen sind Spalten 1..nMain; Rest ignorieren.
+ * La Primitiva/BonoLoto: 6/49. El Gordo: 5/54.
+ */
+export function esGoogleSheet(csvText, { nMain, hiMain }) {
+  const draws = [];
+  for (const line of csvText.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const row = line.split(",").map((c) => c.trim());
+    if (row[0].toUpperCase().startsWith("FECHA")) continue; // Header
+    const date = parseSlashDmy(row[0]);
+    if (!date) continue;
+    const nums = parseInts(row.slice(1, 1 + nMain));
+    if (!nums || !inRange(nums, nMain, hiMain)) continue;
+    draws.push({ d: date, n: nums.slice().sort((a, b) => a - b) });
+  }
+  return draws;
+}
+
+/**
+ * LV Latloto — HTML-Archiv (server-gerendert): pro Ziehung Datum "DD.MM.YYYY" gefolgt von
+ * "numbered-items-latloto" mit 5 <span>Zahl</span> (Separator "+" + .darker-Bonusball danach).
+ * Wir nehmen die ersten 5 Zahlen (der "+"-Separator ist keine Ziffer, fällt raus); Bonus verworfen.
+ * Aktuelles Spiel: latloto38 (5/38). Legacy latloto (5/35) endete 2024-11-09.
+ */
+export function lvLatloto(html, hiMain = 38) {
+  const draws = [];
+  const parts = html.split(/(\d{2}\.\d{2}\.\d{4})/); // [pre, date1, chunk1, date2, chunk2, …]
+  for (let i = 1; i < parts.length; i += 2) {
+    const dm = parts[i];
+    const chunk = parts[i + 1] || "";
+    const idx = chunk.indexOf("numbered-items-latloto");
+    if (idx < 0) continue;
+    const nums = [...chunk.slice(idx).matchAll(/<span[^>]*>(\d{1,2})<\/span>/g)].map((m) => +m[1]).slice(0, 5);
+    if (nums.length !== 5 || !inRange(nums, 5, hiMain)) continue;
+    const [d, mo, y] = dm.split(".");
+    draws.push({ d: `${y}-${mo}-${d}`, n: nums.slice().sort((a, b) => a - b) });
+  }
+  return draws;
+}
+
 // "YYYY.MM.DD." (HU) → ISO
 export function parseDottedYmd(s) {
   if (!s) return null;

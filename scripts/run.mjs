@@ -22,10 +22,17 @@ import * as at645 from "./fetchers/at-6-45.mjs";
 import * as plLotto from "./fetchers/pl-lotto.mjs";
 import * as de649sz from "./fetchers/de-6-49-sz.mjs";
 import * as grTzoker from "./fetchers/gr-tzoker.mjs";
+import * as esPrimitiva from "./fetchers/es-primitiva.mjs";
+import * as esBonoloto from "./fetchers/es-bonoloto.mjs";
+import * as lvLatlotoF from "./fetchers/lv-latloto.mjs";
+import * as eeVikinglotto from "./fetchers/ee-vikinglotto.mjs";
 // … weitere Fetcher hier importieren und in FETCHERS eintragen:
 // import * as frLoto from "./fetchers/fr-loto.mjs";  // FDJ-API, Reverse-Engineering nötig
 
-const FETCHERS = [huHatos, de649, euromillions, at645, plLotto, de649sz, grTzoker];
+const FETCHERS = [
+  huHatos, de649, euromillions, at645, plLotto, de649sz, grTzoker,
+  esPrimitiva, esBonoloto, lvLatlotoF, eeVikinglotto
+];
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dir, "..", "data");
@@ -66,9 +73,8 @@ for (const mod of FETCHERS) {
   };
 
   try {
-    const r = await fetchText(meta.url);
-
     if (probeOnly) {
+      const r = await fetchText(meta.url);
       const html = looksLikeHtml(r.text);
       console.log(`[${meta.key}] status=${r.status} type=${r.ct} bytes=${r.bytes} html=${html ? "JA (BLOCK?)" : "nein"}`);
       console.log(`  sample: ${r.text.slice(0, 160).replace(/\s+/g, " ")}`);
@@ -76,11 +82,20 @@ for (const mod of FETCHERS) {
       continue;
     }
 
-    if (r.status !== 200) { fail(`HTTP ${r.status} — übersprungen`); continue; }
-    if (looksLikeHtml(r.text)) { fail("HTML statt Daten (IP-Block?) — übersprungen, Datei bleibt unangetastet"); continue; }
-
-    const fresh = parse(r.text);
-    if (fresh.length === 0) { fail("Parser fand 0 Ziehungen — übersprungen"); continue; }
+    // Zwei Fetcher-Typen: (a) einfach — export parse(text), run.mjs holt meta.url selbst;
+    // (b) komplex — export async fetchDraws(helpers), holt selbst (mehrere URLs / Paginierung /
+    //     Token-Flow) und liefert die Draws direkt. helpers: { fetchText, BROWSER_HEADERS }.
+    let fresh;
+    if (typeof mod.fetchDraws === "function") {
+      fresh = await mod.fetchDraws({ fetchText, BROWSER_HEADERS });
+    } else {
+      const r = await fetchText(meta.url);
+      if (r.status !== 200) { fail(`HTTP ${r.status} — übersprungen`); continue; }
+      // HTML-Block-Erkennung nur für nicht-HTML-Quellen (kind:"html" ist absichtlich HTML).
+      if (meta.kind !== "html" && looksLikeHtml(r.text)) { fail("HTML statt Daten (IP-Block?) — übersprungen, Datei bleibt unangetastet"); continue; }
+      fresh = parse(r.text);
+    }
+    if (!fresh || fresh.length === 0) { fail("Parser/Fetcher fand 0 Ziehungen — übersprungen"); continue; }
 
     const existing = loadExisting(meta.key);
     const { merged, added } = mergeDraws(existing, fresh);
