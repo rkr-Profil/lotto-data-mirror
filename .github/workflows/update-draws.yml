@@ -47,14 +47,21 @@ jobs:
             echo "Keine Änderungen."
           fi
 
-      # Schickt die run-summary.txt (welche Systeme geholt wurden) ans Handy.
-      # Voraussetzung: Repo-Secret NTFY_URL = https://ntfy.sh/<dein-topic>. Ohne Secret: übersprungen.
-      - name: Handy-Benachrichtigung (ntfy)
+      # Schickt die run-summary.txt (welche Systeme geholt wurden) per Telegram-Bot ans Handy.
+      # Voraussetzung: Repo-Secrets TELEGRAM_TOKEN (von @BotFather) + TELEGRAM_CHAT_ID.
+      # Ohne die Secrets wird der Schritt sauber übersprungen.
+      - name: Handy-Benachrichtigung (Telegram)
         if: ${{ always() && inputs.probe != true }}
         env:
-          NTFY_URL: ${{ secrets.NTFY_URL }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          if [ -z "$NTFY_URL" ]; then echo "NTFY_URL-Secret nicht gesetzt — keine Benachrichtigung."; exit 0; fi
+          if [ -z "$TELEGRAM_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram-Secrets nicht gesetzt — keine Benachrichtigung."; exit 0
+          fi
           if [ -f run-summary.txt ]; then MSG="$(cat run-summary.txt)"; else MSG="🎰 Lucky-Space: Lauf beendet, aber keine Zusammenfassung (evtl. Fehler)."; fi
-          curl -s -H "Title: Lucky-Space Lotto-Update" -H "Tags: game_die" -d "$MSG" "$NTFY_URL" >/dev/null \
-            && echo "Benachrichtigung gesendet." || echo "Benachrichtigung fehlgeschlagen (nicht kritisch)."
+          curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${MSG}" \
+            --data-urlencode "disable_web_page_preview=true" >/dev/null \
+            && echo "Telegram-Benachrichtigung gesendet." || echo "Telegram-Benachrichtigung fehlgeschlagen (nicht kritisch)."
