@@ -91,17 +91,30 @@ for (const mod of FETCHERS) {
     // Zwei Fetcher-Typen: (a) einfach — export parse(text), run.mjs holt meta.url selbst;
     // (b) komplex — export async fetchDraws(helpers), holt selbst (mehrere URLs / Paginierung /
     //     Token-Flow) und liefert die Draws direkt. helpers: { fetchText, BROWSER_HEADERS }.
-    let fresh;
-    if (typeof mod.fetchDraws === "function") {
-      fresh = await mod.fetchDraws({ fetchText, BROWSER_HEADERS });
-    } else {
+    const getFresh = async () => {
+      if (typeof mod.fetchDraws === "function") return await mod.fetchDraws({ fetchText, BROWSER_HEADERS });
       const r = await fetchText(meta.url);
-      if (r.status !== 200) { fail(`HTTP ${r.status} — übersprungen`); continue; }
+      if (r.status !== 200) throw new Error(`HTTP ${r.status}`);
       // HTML-Block-Erkennung nur für nicht-HTML-Quellen (kind:"html" ist absichtlich HTML).
-      if (meta.kind !== "html" && looksLikeHtml(r.text)) { fail("HTML statt Daten (IP-Block?) — übersprungen, Datei bleibt unangetastet"); continue; }
-      fresh = parse(r.text);
+      if (meta.kind !== "html" && looksLikeHtml(r.text)) throw new Error("HTML statt Daten (IP-Block?)");
+      return parse(r.text);
+    };
+
+    // Bis zu 2 Versuche mit 5s Pause — fängt kurze Quell-Aussetzer ab (z. B. PL/wynikilotto-Timeout),
+    // damit ein einmaliger Schluckauf die Action nicht rot färbt.
+    let fresh = null, lastErr = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        fresh = await getFresh();
+        if (fresh && fresh.length) break;
+        lastErr = new Error("0 Ziehungen");
+      } catch (e) { lastErr = e; }
+      if (attempt < 2) {
+        console.warn(`[${meta.key}] Versuch ${attempt} fehlgeschlagen (${lastErr?.message}), erneuter Versuch in 5s…`);
+        await new Promise((res) => setTimeout(res, 5000));
+      }
     }
-    if (!fresh || fresh.length === 0) { fail("Parser/Fetcher fand 0 Ziehungen — übersprungen"); continue; }
+    if (!fresh || fresh.length === 0) { fail(`${lastErr?.message || "kein Ergebnis"} — übersprungen (nach 2 Versuchen)`); continue; }
 
     const existing = loadExisting(meta.key);
     const { merged, added } = mergeDraws(existing, fresh);
