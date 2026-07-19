@@ -18,10 +18,14 @@ import { mergeDraws, looksLikeHtml } from "./lib/util.mjs";
 import * as huHatos from "./fetchers/hu-hatos.mjs";
 import * as de649 from "./fetchers/de-6-49.mjs";
 import * as euromillions from "./fetchers/euromillions.mjs";
+import * as at645 from "./fetchers/at-6-45.mjs";
+import * as plLotto from "./fetchers/pl-lotto.mjs";
+import * as de649sz from "./fetchers/de-6-49-sz.mjs";
+import * as grTzoker from "./fetchers/gr-tzoker.mjs";
 // … weitere Fetcher hier importieren und in FETCHERS eintragen:
-// import * as frLoto from "./fetchers/fr-loto.mjs";
+// import * as frLoto from "./fetchers/fr-loto.mjs";  // FDJ-API, Reverse-Engineering nötig
 
-const FETCHERS = [huHatos, de649, euromillions];
+const FETCHERS = [huHatos, de649, euromillions, at645, plLotto, de649sz, grTzoker];
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dir, "..", "data");

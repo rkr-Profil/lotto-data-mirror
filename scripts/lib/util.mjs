@@ -59,6 +59,87 @@ export function daowaCsv(csvText, { nMain, hiMain, nExtra = 0, hiExtra = 0 }) {
   return draws;
 }
 
+// "DD.MM." (win2day, ohne Jahr) + Jahr → ISO "YYYY-MM-DD"
+export function parseDayMonth(dm, year) {
+  const s = String(dm).trim().replace(/\.$/, "");
+  const parts = s.split(".");
+  if (parts.length < 2) return null;
+  const d = parseInt(parts[0], 10), mo = parseInt(parts[1], 10);
+  if (isNaN(d) || isNaN(mo) || d < 1 || d > 31 || mo < 1 || mo > 12) return null;
+  return `${year}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/**
+ * win2day Jahres-CSV (AT 6/45): Datum;Reihenfolge;Zahl1..Zahl6;ZZ;Zusatzzahl;…
+ * Nur Zeilen mit Reihenfolge === "aufsteigend". Deckt nur EIN Jahr ab → Baseline
+ * (bestehende Vollhistorie in data/at-6-45.json) liefert die Altdaten, Merge hält aktuell.
+ */
+export function win2dayYearly(csvText, year, { nMain = 6, hiMain = 45 } = {}) {
+  const draws = [];
+  for (const line of csvText.split(/\r?\n/)) {
+    const row = line.split(";").map((c) => c.trim());
+    if (row.length < 2 + nMain) continue;
+    if (row[1].toLowerCase() !== "aufsteigend") continue;
+    const date = parseDayMonth(row[0], year);
+    if (!date) continue;
+    const nums = parseInts(row.slice(2, 2 + nMain));
+    if (!nums || !inRange(nums, nMain, hiMain)) continue;
+    draws.push({ d: date, n: nums.slice().sort((a, b) => a - b) });
+  }
+  return draws;
+}
+
+/**
+ * PL Lotto (wynikilotto.net.pl): nr,DD.MM.YYYY,n1..n6 (Vollarchiv, kein Header).
+ */
+export function plLotto(csvText, { nMain = 6, hiMain = 49 } = {}) {
+  const draws = [];
+  for (const line of csvText.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const row = line.split(",").map((c) => c.trim());
+    if (row.length < 2 + nMain) continue;
+    const date = parseDottedDmy(row[1]);
+    if (!date) continue;
+    const nums = parseInts(row.slice(2, 2 + nMain));
+    if (!nums || !inRange(nums, nMain, hiMain)) continue;
+    draws.push({ d: date, n: nums.slice().sort((a, b) => a - b) });
+  }
+  return draws;
+}
+
+/**
+ * GR OPAP (api.opap.gr): JSON-Array (last/N) ODER {content:[...]} (draw-date).
+ * Nur status="results". winningNumbers.list = Haupt, .bonus = Joker. drawTime = Epoch-ms.
+ * Tzoker 5/45 + 1 Joker(1..20).
+ */
+export function opapJson(text, { nMain = 5, hiMain = 45, nExtra = 1, hiExtra = 20 } = {}) {
+  const draws = [];
+  let parsed;
+  try { parsed = JSON.parse(text); } catch { return []; }
+  const arr = Array.isArray(parsed) ? parsed
+    : (parsed && Array.isArray(parsed.content) ? parsed.content : null);
+  if (!arr) return [];
+  for (const d of arr) {
+    if (!d || d.status !== "results") continue;
+    const wn = d.winningNumbers;
+    if (!wn || !Array.isArray(wn.list)) continue;
+    const nums = wn.list.map(Number);
+    if (nums.some((n) => !Number.isFinite(n)) || !inRange(nums, nMain, hiMain)) continue;
+    const n = Number(d.drawTime);
+    if (!Number.isFinite(n) || n <= 0) continue;
+    let date;
+    try { date = new Date(n).toLocaleDateString("sv-SE", { timeZone: "Europe/Athens" }); } catch { continue; }
+    const draw = { d: date, n: nums.slice().sort((a, b) => a - b) };
+    if (nExtra && hiExtra) {
+      const bonus = Array.isArray(wn.bonus) ? wn.bonus.map(Number) : [];
+      if (bonus.length !== nExtra || !inRange(bonus, nExtra, hiExtra)) continue;
+      draw.e = bonus.slice().sort((a, b) => a - b);
+    }
+    draws.push(draw);
+  }
+  return draws;
+}
+
 // "YYYY.MM.DD." (HU) → ISO
 export function parseDottedYmd(s) {
   if (!s) return null;

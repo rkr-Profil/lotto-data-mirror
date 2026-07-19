@@ -48,7 +48,10 @@ node scripts/run.mjs hu-hatos   # nur ein System
 ## Aktuell registriert
 | key | System | Quelle | Status |
 |---|---|---|---|
-| `hu-hatos` | Ungarn Hatoslottó 6/45 | szerencsejatek.hu CSV | Vollhistorie ab 1988, Parser verifiziert |
+| `hu-hatos` | Ungarn Hatoslottó 6/45 | szerencsejatek.hu CSV | Vollhistorie ab 1988 (1829), Probe: GitHub-IP kommt durch |
+| `de-6-49` | Deutschland 6 aus 49 | daowa89/lottery-archive | Vollarchiv ab 1955 (5030) |
+| `euromillions` | EuroMillionen 5/50 + 2 | daowa89/lottery-archive | ab 2004 (1958), inkl. Sterne |
 
-Geplant/kandidaten: `fr-loto` (FDJ-ZIP entpacken), `es-primitiva`/`es-gordo`/`es-bono` (Akamai),
-sowie perspektivisch AT/DE/EM/PL/GR zentral hierher.
+Kandidaten/hart: `fr-loto` (FDJ — offizielle ZIP endet 2024-07, aktuelle Ziehungen hinter dynamischem
+API-Call mit Doc-ID → Reverse-Engineering nötig), `es-*` (Akamai blockt auch GitHub/Cloud-IPs → Proxy nötig),
+sowie perspektivisch AT/PL/GR zentral hierher.
