@@ -4,6 +4,8 @@
  * (2) paginiertes POST /app/ajaxDrawStatistic (10 Draws/Seite) bis leer.
  * Zahlen in results[0].winningNumber (6 Haupt, Ziehungsreihenfolge) + secWinningNumber (Viking).
  * drawDate = Epoch-ms. Datacenter-erreichbar (von US-DC verifiziert).
+ * MAXIMUM der Quelle = 255 Draws ab 2021-05-26 (Regeländerung; davor anderes Format). Die API
+ * kappt dort hart — leeres/frühes dateFrom und asc/desc liefern alle identisch 255 (geprüft).
  */
 import { inRange } from "../lib/util.mjs";
 
