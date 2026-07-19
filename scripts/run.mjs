@@ -16,10 +16,12 @@ import { dirname, join } from "node:path";
 import { mergeDraws, looksLikeHtml } from "./lib/util.mjs";
 
 import * as huHatos from "./fetchers/hu-hatos.mjs";
+import * as de649 from "./fetchers/de-6-49.mjs";
+import * as euromillions from "./fetchers/euromillions.mjs";
 // … weitere Fetcher hier importieren und in FETCHERS eintragen:
 // import * as frLoto from "./fetchers/fr-loto.mjs";
 
-const FETCHERS = [huHatos];
+const FETCHERS = [huHatos, de649, euromillions];
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dir, "..", "data");

@@ -22,6 +22,43 @@ export function inRange(nums, k, hi) {
   return nums.every((n) => n >= 1 && n <= hi);
 }
 
+// "YYYY-MM-DD…" (ISO, daowa89) → normalisiertes "YYYY-MM-DD" (nimmt nur den Datumsteil).
+export function parseIsoDate(s) {
+  if (!s) return null;
+  const m = String(s).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const mo = +m[2], d = +m[3];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return `${m[1]}-${m[2]}-${m[3]}`;
+}
+
+/**
+ * daowa89/lottery-archive — Header + Komma-getrennt + ISO-Datum:
+ *   date,n1..nMain[,extra1..extraX]
+ * DE 6/49:  date,n1..n6,superzahl   → superzahl verworfen (Einzel-Pool) → {nMain:6,hiMain:49}
+ * EuroMil.: date,n1..n5,s1,s2       → Sterne als Extra-Pool → {nMain:5,hiMain:50,nExtra:2,hiExtra:12}
+ */
+export function daowaCsv(csvText, { nMain, hiMain, nExtra = 0, hiExtra = 0 }) {
+  const draws = [];
+  for (const line of csvText.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const row = line.split(",").map((c) => c.trim());
+    if (row[0].toLowerCase() === "date") continue; // Header
+    const date = parseIsoDate(row[0]);
+    if (!date) continue;
+    const nums = parseInts(row.slice(1, 1 + nMain));
+    if (!nums || !inRange(nums, nMain, hiMain)) continue;
+    const draw = { d: date, n: nums.slice().sort((a, b) => a - b) };
+    if (nExtra && hiExtra) {
+      const ex = parseInts(row.slice(1 + nMain, 1 + nMain + nExtra));
+      if (!ex || !inRange(ex, nExtra, hiExtra)) continue; // Zwei-Pool braucht gültige Extras
+      draw.e = ex.slice().sort((a, b) => a - b);
+    }
+    draws.push(draw);
+  }
+  return draws;
+}
+
 // "YYYY.MM.DD." (HU) → ISO
 export function parseDottedYmd(s) {
   if (!s) return null;
