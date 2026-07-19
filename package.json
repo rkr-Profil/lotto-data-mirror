@@ -1,0 +1,11 @@
+{
+  "name": "lotto-data-mirror",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Normalisierter Lotto-Ziehungs-Mirror für Lucky-Space. GitHub-Action holt Quell-Daten (auch von IP-geblockten Servern) und committet saubere data/*.json.",
+  "scripts": {
+    "update": "node scripts/run.mjs",
+    "probe": "node scripts/run.mjs --probe"
+  }
+}
