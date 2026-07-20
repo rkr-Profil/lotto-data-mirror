@@ -286,6 +286,14 @@ export function huWeekDate(yearCell, weekCell, dayCell) {
 }
 
 // Merge: bestehende (committete) Draws + frische; nach Datum keyen, sortieren.
+//
+// Zusätzlich zur Datums-Deduplizierung eine Absicherung gegen versetzte Dubletten:
+// Bei Quellen mit REKONSTRUIERTEM Datum (HU: aus Jahr+KW+Wochentag) kann dieselbe
+// Ziehung mit leicht abweichendem Datum entstehen, wenn Baseline und Fetcher
+// verschiedene Wochentags-Konventionen verwenden (Sonntag vs. Montag). Der reine
+// Datums-Key ließ dann BEIDE stehen — am 2026-07-20 blähte das HU von 1829 auf
+// 2481 auf (652 Phantom-Dubletten). Sechs identische 6/45-Zahlen innerhalb von
+// 7 Tagen sind statistisch dieselbe Ziehung, nie ein Zufall → wir entfernen sie.
 export function mergeDraws(existing, fresh) {
   const byDate = new Map();
   for (const d of existing) byDate.set(d.d, d);
@@ -294,8 +302,24 @@ export function mergeDraws(existing, fresh) {
     if (!byDate.has(d.d)) added++;
     byDate.set(d.d, d);
   }
-  const merged = [...byDate.values()].sort((a, b) => a.d.localeCompare(b.d));
-  return { merged, added };
+  let merged = [...byDate.values()].sort((a, b) => a.d.localeCompare(b.d));
+
+  // Versetzte Dubletten einsammeln: gleiche Hauptzahlen-Signatur, Datum ≤ 7 Tage
+  // auseinander. Behalten wird der frühere Eintrag, der spätere fällt weg.
+  const sig = (d) => (d.n || []).join(",");
+  const dropped = [];
+  const clean = [];
+  for (const d of merged) {
+    const prev = clean.length ? clean[clean.length - 1] : null;
+    if (prev && sig(prev) === sig(d) && sig(d) !== "") {
+      const days = Math.abs(new Date(d.d) - new Date(prev.d)) / 86400000;
+      if (days <= 7) { dropped.push(d.d); continue; }
+    }
+    clean.push(d);
+  }
+  merged = clean;
+
+  return { merged, added, dropped: dropped.length, droppedDates: dropped };
 }
 
 // Erkennt eine HTML-/Block-Antwort (z. B. Homepage statt CSV/JSON) heuristisch.
