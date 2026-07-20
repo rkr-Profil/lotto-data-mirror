@@ -34,8 +34,15 @@ jobs:
             node scripts/run.mjs
           fi
 
+      # always(): Ein einzelnes hakendes Land darf NICHT verhindern, dass die
+      # erfolgreich geholten Systeme gespeichert werden. Ohne always() wird dieser
+      # Schritt bei einem Fehler in "Fetch & normalize" übersprungen — dann bleibt
+      # der gesamte Lauf folgenlos, obwohl 13 von 14 Systemen sauber liefen.
+      # run.mjs kapselt jedes System einzeln in try/catch, die geschriebenen
+      # Dateien sind also konsistent. Der Job endet trotzdem rot (siehe run.mjs
+      # exitCode), damit der Fehler sichtbar bleibt.
       - name: Commit changed data
-        if: ${{ inputs.probe != true }}
+        if: ${{ always() && inputs.probe != true }}
         run: |
           git config user.name  "lotto-data-bot"
           git config user.email "actions@users.noreply.github.com"
@@ -59,7 +66,10 @@ jobs:
           if [ -z "$TELEGRAM_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
             echo "Telegram-Secrets nicht gesetzt — keine Benachrichtigung."; exit 0
           fi
-          if [ -f run-summary.txt ]; then MSG="$(cat run-summary.txt)"; else MSG="🎰 Lucky-Space: Lauf beendet, aber keine Zusammenfassung (evtl. Fehler)."; fi
+          if [ -f run-summary.txt ]; then MSG="$(cat run-summary.txt)"; else MSG="🎰 Lucky-Space: Lauf beendet, aber keine Zusammenfassung — vermutlich Absturz vor dem Ende."; fi
+          # Auslöser und Ergebnis mitschicken: so ist am Handy sofort erkennbar, ob
+          # der Lauf der geplante war (schedule) oder ein manueller, und ob er rot wurde.
+          MSG="${MSG}"$'\n'"— Auslöser: ${{ github.event_name }} · Ergebnis: ${{ job.status }}"
           curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
             --data-urlencode "text=${MSG}" \
