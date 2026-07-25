@@ -5,7 +5,11 @@ name: update-draws
 # die Roh-URLs: https://raw.githubusercontent.com/<user>/<repo>/main/data/<key>.json
 on:
   schedule:
-    - cron: "20 5 * * *"   # 05:20 UTC ~ 07:20 Wien
+    # 03:50 UTC = 05:50 Wien (Sommer/CEST) bzw. 04:50 (Winter/CET) — GitHub-Cron ist
+    # UTC ohne Sommerzeit. Off-Round-Minute (:50) mindert die Schedule-Warteschlange
+    # (Free-Tier staut am stärksten zu vollen/runden Zeiten). Verspätung bleibt möglich —
+    # zuverlässig pünktlich nur per externem workflow_dispatch-Trigger.
+    - cron: "50 3 * * *"
   workflow_dispatch:
     inputs:
       probe:
