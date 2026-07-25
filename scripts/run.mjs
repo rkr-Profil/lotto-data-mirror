@@ -117,10 +117,16 @@ for (const mod of FETCHERS) {
     if (!fresh || fresh.length === 0) { fail(`${lastErr?.message || "kein Ergebnis"} — übersprungen (nach 2 Versuchen)`); continue; }
 
     const existing = loadExisting(meta.key);
-    const { merged, added } = mergeDraws(existing, fresh);
+    const { merged, dropped } = mergeDraws(existing, fresh);
+    // Netto-Zuwachs = wie stark die gespeicherte Datei tatsächlich wächst.
+    // Nicht die roh geparsten Neu-Daten melden: die Dedup entfernt versetzte
+    // Phantom-Dubletten NACH dem Zählen, sonst meldet Telegram „hu-hatos+652",
+    // obwohl die Datei bei 1831 bleibt. net kann 0 (nur Dubletten) oder negativ
+    // (Altbestand bereinigt) sein.
+    const net = merged.length - existing.length;
     writeFileSync(join(DATA_DIR, `${meta.key}.json`), JSON.stringify(merged));
-    console.log(`[${meta.key}] OK — ${fresh.length} geparst, ${added} neu, ${merged.length} gesamt (${merged[0]?.d} … ${merged[merged.length - 1]?.d})`);
-    report.push({ key: meta.key, ok: true, added, total: merged.length });
+    console.log(`[${meta.key}] OK — ${fresh.length} geparst, ${net} netto neu${dropped ? `, ${dropped} Dublette(n) entfernt` : ""}, ${merged.length} gesamt (${merged[0]?.d} … ${merged[merged.length - 1]?.d})`);
+    report.push({ key: meta.key, ok: true, added: net, total: merged.length });
   } catch (e) {
     fail(`FEHLER: ${e.message}`);
   }

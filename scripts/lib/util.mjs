@@ -304,9 +304,15 @@ export function mergeDraws(existing, fresh) {
   }
   let merged = [...byDate.values()].sort((a, b) => a.d.localeCompare(b.d));
 
-  // Versetzte Dubletten einsammeln: gleiche Hauptzahlen-Signatur, Datum ≤ 7 Tage
-  // auseinander. Behalten wird der frühere Eintrag, der spätere fällt weg.
-  const sig = (d) => (d.n || []).join(",");
+  // Versetzte Dubletten einsammeln: gleiche Signatur, Datum ≤ 7 Tage auseinander.
+  // Behalten wird der frühere Eintrag, der spätere fällt weg.
+  // Signatur = Hauptzahlen UND Zusatzzahlen (e). Nur die Hauptzahlen zu vergleichen
+  // wäre bei Bonus-Systemen (EuroMillionen/EuroJackpot/GR/EE/DE-SZ/PT) unsauber:
+  // zwei echte Ziehungen binnen 7 Tagen mit gleichen 5 Haupt-, aber anderen
+  // Zusatzzahlen würden fälschlich als Dublette gedroppt. Die realen versetzten
+  // Dubletten (HU-Rekonstruktion, euromillions 2017-08, gr-tzoker 2004-01) sind
+  // in ALLEN Feldern identisch → die härtere Signatur fängt sie weiterhin.
+  const sig = (d) => (d.n || []).join(",") + "|" + (d.e || []).join(",");
   const dropped = [];
   const clean = [];
   for (const d of merged) {
