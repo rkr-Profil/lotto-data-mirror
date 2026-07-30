@@ -74,6 +74,23 @@ export function parseDayMonth(dm, year) {
  * Nur Zeilen mit Reihenfolge === "aufsteigend". Deckt nur EIN Jahr ab → Baseline
  * (bestehende Vollhistorie in data/at-6-45.json) liefert die Altdaten, Merge hält aktuell.
  */
+/**
+ * 6er-Gewinnerzahl aus einer win2day-Zeile (2026-07-30).
+ * Die Klasse steht als Label "6er", der Wert in der Zelle daneben. Statt einer Zahl
+ * kann dort ein Jackpot-Marker stehen: JP, DJP, 3JP … 7JP — alle bedeuten
+ * "kein Sechser" (der Topf rollt weiter), also 0.
+ * Rückgabe null = keine belastbare Angabe; dann bleibt das Feld weg, statt eine 0
+ * zu erfinden (eine falsche 0 würde eine Jackpot-Serie vortäuschen).
+ */
+function win2daySechser(row) {
+  const i = row.indexOf("6er");
+  if (i < 0 || i + 1 >= row.length) return null;
+  const v = (row[i + 1] || "").trim();
+  if (/^(?:D|\d)?JP$/.test(v)) return 0;
+  const t = v.replace(/[.\s]/g, "");
+  return /^\d+$/.test(t) ? parseInt(t, 10) : null;
+}
+
 export function win2dayYearly(csvText, year, { nMain = 6, hiMain = 45 } = {}) {
   const draws = [];
   for (const line of csvText.split(/\r?\n/)) {
@@ -84,7 +101,13 @@ export function win2dayYearly(csvText, year, { nMain = 6, hiMain = 45 } = {}) {
     if (!date) continue;
     const nums = parseInts(row.slice(2, 2 + nMain));
     if (!nums || !inRange(nums, nMain, hiMain)) continue;
-    draws.push({ d: date, n: nums.slice().sort((a, b) => a - b) });
+    const draw = { d: date, n: nums.slice().sort((a, b) => a - b) };
+    // j = Anzahl der Sechser-Gewinner (0 = keiner). Nur AT 6/45 nutzt diesen Parser;
+    // andere Systeme bleiben unberührt. Die App leitet daraus die Jackpot-Ziehungen ab
+    // (erster Sechser nach einer oder mehreren Leerziehungen).
+    const j = win2daySechser(row);
+    if (j !== null) draw.j = j;
+    draws.push(draw);
   }
   return draws;
 }
