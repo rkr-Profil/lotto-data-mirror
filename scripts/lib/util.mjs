@@ -313,6 +313,44 @@ export function huWeekDate(yearCell, weekCell, dayCell) {
 // Zusätzlich zur Datums-Deduplizierung eine Absicherung gegen versetzte Dubletten:
 // Bei Quellen mit REKONSTRUIERTEM Datum (HU: aus Jahr+KW+Wochentag) kann dieselbe
 // Ziehung mit leicht abweichendem Datum entstehen, wenn Baseline und Fetcher
+// Veikkaus draw-results by-day JSON (Array) → Draws. Jedes Item: results[0].primary (Haupt),
+// results[0].secondary (Zusatz/Sterne), drawTime = Epoch-ms. Genutzt für EuroJackpot (via
+// Veikkaus-EJACKPOT) und ggf. FI Lotto. addonDraws (Jokeri) wird ignoriert (nur .results gelesen).
+export function veikkausByDay(jsonText, { nMain, hiMain, nExtra = 0, hiExtra = 0, tz = "Europe/Helsinki" }) {
+  let arr; try { arr = JSON.parse(jsonText); } catch { return []; }
+  if (!Array.isArray(arr)) return [];
+  const draws = [];
+  for (const dr of arr) {
+    const res = dr && Array.isArray(dr.results) ? dr.results[0] : null;
+    if (!res || !Array.isArray(res.primary)) continue;
+    const nums = parseInts(res.primary);
+    if (!nums || !inRange(nums, nMain, hiMain)) continue;
+    const ms = Number(dr.drawTime);
+    if (!Number.isFinite(ms) || ms <= 0) continue;
+    let date;
+    try { date = new Date(ms).toLocaleDateString("sv-SE", { timeZone: tz }); }
+    catch { date = new Date(ms).toISOString().slice(0, 10); }
+    const draw = { d: date, n: nums.slice().sort((a, b) => a - b) };
+    if (nExtra && hiExtra) {
+      const ex = parseInts(res.secondary || []);
+      if (!ex || !inRange(ex, nExtra, hiExtra)) continue;
+      draw.e = ex.slice().sort((a, b) => a - b);
+    }
+    draws.push(draw);
+  }
+  return draws;
+}
+
+// ponturi.ro Detailseite (RO Loto 6/49) → 6 Hauptzahlen. Der Fließtext nennt sie sauber:
+// „Numerele extrase au fost 42, 8, 6, 27, 2, 31." (die Archiv-Übersicht konkateniert sie — daher Detail).
+export function ponturiDetail(html, { nMain = 6, hiMain = 49 } = {}) {
+  const m = String(html).match(/Numerele extrase[^0-9]{0,40}?([0-9]{1,2}(?:\s*,\s*[0-9]{1,2}){4,6})/i);
+  if (!m) return null;
+  const nums = m[1].split(",").map((s) => parseInt(s.trim(), 10)).filter((n) => Number.isFinite(n));
+  if (!inRange(nums, nMain, hiMain)) return null;
+  return nums.slice().sort((a, b) => a - b);
+}
+
 // verschiedene Wochentags-Konventionen verwenden (Sonntag vs. Montag). Der reine
 // Datums-Key ließ dann BEIDE stehen — am 2026-07-20 blähte das HU von 1829 auf
 // 2481 auf (652 Phantom-Dubletten). Sechs identische 6/45-Zahlen innerhalb von

@@ -29,12 +29,15 @@ import * as eeVikinglotto from "./fetchers/ee-vikinglotto.mjs";
 import * as beLotto from "./fetchers/be-lotto.mjs";
 import * as nlLotto from "./fetchers/nl-lotto.mjs";
 import * as ptTotolotoF from "./fetchers/pt-totoloto.mjs";
+import * as eurojackpot from "./fetchers/eurojackpot.mjs";   // Veikkaus-EJACKPOT-API (2026-08-25)
+import * as ro649 from "./fetchers/ro-6-49.mjs";             // ponturi.ro (2026-08-25)
 // … weitere Fetcher hier importieren und in FETCHERS eintragen:
 // import * as frLoto from "./fetchers/fr-loto.mjs";  // FDJ-API, Reverse-Engineering nötig
 
 const FETCHERS = [
   huHatos, de649, euromillions, at645, plLotto, de649sz, grTzoker,
-  esPrimitiva, esBonoloto, lvLatlotoF, eeVikinglotto, beLotto, nlLotto, ptTotolotoF
+  esPrimitiva, esBonoloto, lvLatlotoF, eeVikinglotto, beLotto, nlLotto, ptTotolotoF,
+  eurojackpot, ro649
 ];
 
 const __dir = dirname(fileURLToPath(import.meta.url));
