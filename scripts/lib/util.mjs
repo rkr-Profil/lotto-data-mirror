@@ -355,15 +355,22 @@ export function ponturiDetail(html, { nMain = 6, hiMain = 49 } = {}) {
 // Datums-Key ließ dann BEIDE stehen — am 2026-07-20 blähte das HU von 1829 auf
 // 2481 auf (652 Phantom-Dubletten). Sechs identische 6/45-Zahlen innerhalb von
 // 7 Tagen sind statistisch dieselbe Ziehung, nie ein Zufall → wir entfernen sie.
+// Schlüssel = Datum + optionale Rundennummer. Hintergrund (2026-08-26): das UK-Lotto zieht
+// seit 2026-06-10 ZWEI Runden pro Abend. Mit reinem Datums-Key hätte Runde 2 die Runde 1
+// still überschrieben. Systeme ohne `r` verhalten sich unverändert (Key = nur das Datum).
+const drawKey = (d) => (d.r ? `${d.d}#${d.r}` : d.d);
+
 export function mergeDraws(existing, fresh) {
   const byDate = new Map();
-  for (const d of existing) byDate.set(d.d, d);
+  for (const d of existing) byDate.set(drawKey(d), d);
   let added = 0;
   for (const d of fresh) {
-    if (!byDate.has(d.d)) added++;
-    byDate.set(d.d, d);
+    const k = drawKey(d);
+    if (!byDate.has(k)) added++;
+    byDate.set(k, d);
   }
-  let merged = [...byDate.values()].sort((a, b) => a.d.localeCompare(b.d));
+  // Sekundär nach Runde sortieren, damit Runde 1 vor Runde 2 desselben Abends steht.
+  let merged = [...byDate.values()].sort((a, b) => a.d.localeCompare(b.d) || ((a.r || 0) - (b.r || 0)));
 
   // Versetzte Dubletten einsammeln: gleiche Signatur, Datum ≤ 7 Tage auseinander.
   // Behalten wird der frühere Eintrag, der spätere fällt weg.
