@@ -69,12 +69,24 @@ export async function fetchDraws({ fetchText }) {
   const nowY = new Date().getUTCFullYear();
   const fromY = process.env.UK_FROM_YEAR ? parseInt(process.env.UK_FROM_YEAR, 10) : nowY;
   const draws = [];
+  /* Gruende sammeln statt sie zu verschlucken.
+     Vorher hiess es hier `catch { continue }` und `if (r.status !== 200) continue`.
+     Damit endeten ein 403, ein Zeitablauf und eine Seite, die sich nicht parsen
+     laesst, alle gleich: als leeres Ergebnis, das der Runner nur als
+     "0 Ziehungen" melden konnte. Am 2026-08-27 stand deshalb zwei Tage lang
+     nicht fest, ob lottery.co.uk die Actions-IP sperrt oder ob der Parser
+     danebenliegt -- zwei voellig verschiedene Reparaturen. */
+  const probleme = [];
   for (let y = fromY; y <= nowY; y++) {
     let r;
-    try { r = await fetchText(ARCH(y)); } catch { continue; }
-    if (r.status !== 200) continue;
-    draws.push(...parse(r.text));
+    try { r = await fetchText(ARCH(y)); }
+    catch (e) { probleme.push(y + ": " + (e && e.message ? e.message : String(e))); continue; }
+    if (r.status !== 200) { probleme.push(y + ": HTTP " + r.status); continue; }
+    const d = parse(r.text);
+    if (!d.length) probleme.push(y + ": HTTP 200, aber 0 Ziehungen geparst (" + r.bytes + " Bytes)");
+    draws.push(...d);
     await new Promise((res) => setTimeout(res, 120));
   }
+  if (!draws.length && probleme.length) throw new Error(probleme.join(" \u00b7 "));
   return draws;
 }
