@@ -67,8 +67,17 @@ const args = process.argv.slice(2);
 const probeOnly = args.includes("--probe");
 const onlyKeys = args.filter((a) => !a.startsWith("--"));
 
+/* Harter Zeitablauf je Anfrage (2026-08-27).
+ * Vorher lief fetch() ohne AbortSignal. Wenn eine Quelle die Verbindung still
+ * haengen laesst -- statt sauber 403 zu antworten --, blockiert das minutenlang.
+ * Am 2026-08-27 dauerte ein Lauf dadurch 7,3 statt der ueblichen 1-2 Minuten:
+ * uk-lotto und ie-lotto (beide lottery.co.uk) kamen von der Actions-IP nicht
+ * durch, und die auf 3 erhoehten Versuche vervielfachten die Haengezeit.
+ * 15 s reichen mit Abstand: die langsamste gesunde Quelle antwortet in < 1 s. */
+const FETCH_TIMEOUT_MS = 15000;
+
 async function fetchText(url) {
-  const res = await fetch(url, { headers: BROWSER_HEADERS });
+  const res = await fetch(url, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   const buf = new Uint8Array(await res.arrayBuffer());
   const text = new TextDecoder("utf-8", { fatal: false }).decode(buf);
   return { status: res.status, ct: res.headers.get("content-type") || "", bytes: buf.length, text };
