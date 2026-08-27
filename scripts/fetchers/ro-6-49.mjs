@@ -5,7 +5,7 @@
  * Täglich: aktuelles + Vorjahr, nur die jüngsten ~20 Slugs/Jahr (Merge dedupliziert).
  * Voll-/Tief-Backfill: RO_FROM_YEAR=1993 (o. ä.) setzen → alle Jahre, alle Detailseiten.
  */
-import { ponturiDetail } from "../lib/util.mjs";
+import { ponturiDetail, neueStoerungen } from "../lib/util.mjs";
 
 const ARCH   = (year) => `https://ponturi.ro/loto/loteria-romana/6-49/arhiva/?year=${year}`;
 const DETAIL = (date) => `https://ponturi.ro/loto/loteria-romana/6-49/rezultate-${date}/`;
@@ -24,26 +24,31 @@ export async function fetchDraws({ fetchText }) {
   const perYearLimit = backfill ? Infinity : 20;
 
   // Schritt 1: Slugs aus den Jahres-Archiven (neueste zuerst).
+  const stoer = neueStoerungen();   // Gruende sammeln statt verschlucken
   const slugs = [];
   for (let y = nowY; y >= fromY; y--) {
     let r;
-    try { r = await fetchText(ARCH(y)); } catch { continue; }
-    if (r.status !== 200) continue;
+    try { r = await fetchText(ARCH(y)); } catch (e) { stoer.fehler(e); continue; }
+    if (r.status !== 200) { stoer.status(r.status); continue; }
     const found = [...r.text.matchAll(/rezultate-(\d{4}-\d{2}-\d{2})\//g)].map((m) => m[1]);
     const uniq = [...new Set(found)];
+    if (!uniq.length) stoer.leer(r.bytes);        // Seite kam an, enthielt aber keine Termine
     slugs.push(...(perYearLimit === Infinity ? uniq : uniq.slice(0, perYearLimit)));
   }
   const uniqSlugs = [...new Set(slugs)];
+  // Kein einziger Termin gefunden -> Grund melden, nicht stillschweigend leer bleiben
+  stoer.pruefen(uniqSlugs.length);
 
   // Schritt 2: Detailseiten → saubere Zahlen.
   const draws = [];
   for (const date of uniqSlugs) {
     let r;
-    try { r = await fetchText(DETAIL(date)); } catch { continue; }
-    if (r.status !== 200) continue;
+    try { r = await fetchText(DETAIL(date)); } catch (e) { stoer.fehler(e); continue; }
+    if (r.status !== 200) { stoer.status(r.status); continue; }
     const nums = ponturiDetail(r.text, { nMain: 6, hiMain: 49 });
-    if (nums) draws.push({ d: date, n: nums });
+    if (nums) draws.push({ d: date, n: nums }); else stoer.leer(r.bytes);
     await new Promise((res) => setTimeout(res, 80));
   }
+  stoer.pruefen(draws.length);
   return draws;
 }

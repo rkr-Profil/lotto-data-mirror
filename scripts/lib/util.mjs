@@ -401,3 +401,41 @@ export function looksLikeHtml(text) {
   const head = text.slice(0, 500).toLowerCase();
   return head.includes("<!doctype html") || head.includes("<html") || head.includes("<head");
 }
+
+/* ── Störungs-Sammler ───────────────────────────────────────────────────
+ * Warum es das gibt: mehrere Fetcher fingen Fehler mit `catch { continue }`
+ * ab und übersprangen Nicht-200 mit `if (r.status !== 200) continue`. Beide
+ * Zweige werfen die Ursache weg — ein 403, ein Zeitablauf und eine Seite, die
+ * sich nicht parsen lässt, enden alle als leeres Ergebnis. Der Runner kann das
+ * nur als „0 Ziehungen" melden, und genau daran hing am 2026-08-27 einen halben
+ * Tag lang die Frage, ob lottery.co.uk sperrt oder der Parser danebenliegt.
+ *
+ * Der Sammler merkt sich die Gründe und fasst sie zusammen. Gemeldet wird nur,
+ * wenn am Ende GAR NICHTS herauskam — einzelne Fehlschläge sind bei Fetchern,
+ * die Tag für Tag abfragen, der Normalfall (ziehungsfreie Tage antworten mit
+ * 404) und dürfen nicht als Störung gelten.
+ *
+ * Verwendung:
+ *   const stoer = neueStoerungen();
+ *   try { r = await fetchText(url); } catch (e) { stoer.fehler(e); continue; }
+ *   if (r.status !== 200) { stoer.status(r.status); continue; }
+ *   ...
+ *   stoer.pruefen(draws.length);      // wirft nur bei 0 Ergebnissen
+ */
+export function neueStoerungen() {
+  const zaehler = new Map();
+  const merke = (grund) => zaehler.set(grund, (zaehler.get(grund) || 0) + 1);
+  return {
+    status: (code) => merke("HTTP " + code),
+    fehler: (e) => merke(e && e.message ? e.message : String(e)),
+    leer:   (bytes) => merke("HTTP 200, aber 0 Ziehungen geparst (" + bytes + " Bytes)"),
+    /** Wirft eine Fehlermeldung mit dem echten Grund, wenn nichts geholt wurde. */
+    pruefen(anzahl) {
+      if (anzahl > 0 || zaehler.size === 0) return;
+      const teile = [...zaehler.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([grund, n]) => (n > 1 ? n + "\u00d7 " : "") + grund);
+      throw new Error(teile.join(" \u00b7 "));
+    }
+  };
+}
