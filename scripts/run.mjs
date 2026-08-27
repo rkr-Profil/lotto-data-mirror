@@ -24,7 +24,7 @@ import * as de649sz from "./fetchers/de-6-49-sz.mjs";
 import * as grTzoker from "./fetchers/gr-tzoker.mjs";
 import * as esPrimitiva from "./fetchers/es-primitiva.mjs";
 import * as esBonoloto from "./fetchers/es-bonoloto.mjs";
-import * as lvLatlotoF from "./fetchers/lv-latloto.mjs";
+import * as lvLatlotoF from "./fetchers/lv-latloto.mjs";   // bewusst NICHT in FETCHERS — siehe Notiz unter der Liste
 import * as eeVikinglotto from "./fetchers/ee-vikinglotto.mjs";
 import * as beLotto from "./fetchers/be-lotto.mjs";
 import * as nlLotto from "./fetchers/nl-lotto.mjs";
@@ -39,9 +39,21 @@ import * as ieLotto from "./fetchers/ie-lotto.mjs";          // lottery.co.uk ir
 
 const FETCHERS = [
   huHatos, de649, euromillions, at645, plLotto, de649sz, grTzoker,
-  esPrimitiva, esBonoloto, lvLatlotoF, eeVikinglotto, beLotto, nlLotto, ptTotolotoF,
+  esPrimitiva, esBonoloto, eeVikinglotto, beLotto, nlLotto, ptTotolotoF,
   eurojackpot, ro649, fiLotto, ukLotto, ieLotto
 ];
+
+/* ⛔ ABGESCHALTET 2026-08-27: lvLatlotoF (Lettland Latloto 5/38)
+ * latloto.lv steht seit Ende August hinter einer Cloudflare-Bot-Challenge
+ * (HTTP 403, Cf-Mitigated: challenge, "Just a moment…"). Der Server laeuft,
+ * er weist den Abruf gezielt ab — das ist mit Kopfzeilen nicht zu loesen und
+ * soll auch nicht umgangen werden. Letzter erfolgreicher Stand: Ziehung vom
+ * 2026-08-22. Da Lettland in der App ohnehin ausgeblendet ist (zu duenne
+ * Datenlage, keine Zielgruppe), waere jeder weitere Versuch nur eine taegliche
+ * Fehlmeldung auf dem Handy.
+ * Import und Fetcher-Datei bleiben absichtlich stehen: findet sich eine neue
+ * Quelle, genuegt es, lvLatlotoF wieder in die Liste oben aufzunehmen.
+ * data/lv-latloto.json bleibt unangetastet (206 Ziehungen bis 2026-08-22). */
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dir, "..", "data");
@@ -71,9 +83,28 @@ function loadExisting(key) {
 let hadError = false;
 const report = []; // je System { key, ok, added?, total?, optional? } — für die Handy-Meldung
 
+/* Pacing (2026-08-27). Vorher lief die Schleife ohne jede Pause durch, und
+ * uk-lotto und ie-lotto stehen direkt hintereinander am Listenende — beide
+ * gegen lottery.co.uk. Zwei Anfragen im selben Sekundenbruchteil an denselben
+ * Host sind genau das Muster, das Betreiber abwehren. */
+const PAUSE_MS = 500;              // zwischen zwei Systemen
+const PAUSE_SAME_HOST_MS = 2000;   // wenn das naechste System denselben Host trifft
+const RETRIES = 3;
+const RETRY_WAIT_MS = [5000, 20000];
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+const hostOf = (m) => { try { return new URL(m.meta.url).host; } catch { return m.meta.key; } };
+
+let prevHost = null;
 for (const mod of FETCHERS) {
   const { meta, parse } = mod;
   if (onlyKeys.length && !onlyKeys.includes(meta.key)) continue;
+
+  // Vor jedem System kurz durchatmen — laenger, wenn derselbe Host schon
+  // beim vorigen System drankam (uk-lotto -> ie-lotto). Die Probe darf
+  // durchlaufen, die soll schnell Auskunft geben.
+  const host = hostOf(mod);
+  if (prevHost !== null && !probeOnly) await sleep(host === prevHost ? PAUSE_SAME_HOST_MS : PAUSE_MS);
+  prevHost = host;
 
   // optional-Systeme (z. B. GR: OPAP geo-blockt Datacenter-IPs) dürfen die Action nicht
   // rot färben — Fehler werden geloggt, setzen aber hadError nur bei Pflicht-Systemen.
@@ -108,19 +139,24 @@ for (const mod of FETCHERS) {
 
     // Bis zu 2 Versuche mit 5s Pause — fängt kurze Quell-Aussetzer ab (z. B. PL/wynikilotto-Timeout),
     // damit ein einmaliger Schluckauf die Action nicht rot färbt.
+    // 3 Versuche mit wachsendem Abstand (5s, 20s). Vorher waren es 2 Versuche
+    // mit 5s — zu knapp: lottery.co.uk hat am 2026-08-27 die Actions-IP kurz
+    // abgewiesen, beide Versuche fielen in dasselbe Zeitfenster und uk-lotto
+    // wurde als "nicht geholt" gemeldet, obwohl die Quelle in Ordnung war.
     let fresh = null, lastErr = null;
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= RETRIES; attempt++) {
       try {
         fresh = await getFresh();
         if (fresh && fresh.length) break;
         lastErr = new Error("0 Ziehungen");
       } catch (e) { lastErr = e; }
-      if (attempt < 2) {
-        console.warn(`[${meta.key}] Versuch ${attempt} fehlgeschlagen (${lastErr?.message}), erneuter Versuch in 5s…`);
-        await new Promise((res) => setTimeout(res, 5000));
+      if (attempt < RETRIES) {
+        const waitMs = RETRY_WAIT_MS[attempt - 1];
+        console.warn(`[${meta.key}] Versuch ${attempt} fehlgeschlagen (${lastErr?.message}), erneuter Versuch in ${waitMs / 1000}s…`);
+        await sleep(waitMs);
       }
     }
-    if (!fresh || fresh.length === 0) { fail(`${lastErr?.message || "kein Ergebnis"} — übersprungen (nach 2 Versuchen)`); continue; }
+    if (!fresh || fresh.length === 0) { fail(`${lastErr?.message || "kein Ergebnis"} — übersprungen (nach ${RETRIES} Versuchen)`); continue; }
 
     const existing = loadExisting(meta.key);
     const { merged, dropped } = mergeDraws(existing, fresh);
