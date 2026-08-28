@@ -120,7 +120,12 @@ for (const mod of FETCHERS) {
   const fail = (msg) => {
     console.error(`[${meta.key}] ${msg}${meta.optional ? " (optional — kein Fehler)" : ""}`);
     if (!meta.optional) hadError = true;
-    report.push({ key: meta.key, ok: false, optional: !!meta.optional });
+    /* Grund MITNEHMEN, nicht nur ins Protokoll schreiben. Die Fetcher melden seit
+       2026-08-27 den echten Ausfallgrund (HTTP 403 / Zeitablauf / "200 aber 0
+       geparst") — der landete aber nur im Action-Log, an das man ohne Anmeldung
+       nicht herankommt. Auf dem Handy stand weiterhin bloss "nicht geholt: uk-lotto",
+       also genau die Ratlosigkeit, die der Umbau beseitigen sollte. */
+    report.push({ key: meta.key, ok: false, optional: !!meta.optional, grund: String(msg || "") });
   };
 
   try {
@@ -192,7 +197,18 @@ if (!probeOnly && report.length) {
   const day = new Date().toISOString().slice(0, 10);
   const lines = [`🎰 Lucky-Space ${day} — ${ok.length}/${report.length} Systeme geholt`];
   lines.push(withNew.length ? `🆕 ${withNew.join(" · ")}` : "🆕 keine neuen Ziehungen");
-  if (failed.length) lines.push(`⚠️ nicht geholt: ${failed.map((r) => r.key + (r.optional ? " (optional)" : "")).join(", ")}`);
+  if (failed.length) {
+    // Je Ausfall eine eigene Zeile MIT Grund. Gekuerzt, damit die Nachricht auch
+    // bei mehreren Ausfaellen unter dem Telegram-Limit bleibt.
+    const kurz = (g) => {
+      const t = g.replace(/\s+/g, " ").replace(/ — übersprungen.*$/, "").trim();
+      return t.length > 120 ? t.slice(0, 117) + "…" : t;
+    };
+    lines.push("⚠️ nicht geholt:");
+    for (const r of failed) {
+      lines.push(`   ${r.key}${r.optional ? " (optional)" : ""}: ${kurz(r.grund) || "kein Grund gemeldet"}`);
+    }
+  }
   const summary = lines.join("\n");
   writeFileSync(join(__dir, "..", "run-summary.txt"), summary);
   console.log("\n" + summary);
