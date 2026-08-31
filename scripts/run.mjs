@@ -57,6 +57,18 @@ const FETCHERS = [
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dir, "..", "data");
+/* IPv4 zuerst (2026-09-01).
+ * uk-lotto und ie-lotto melden seit zwei Tagen "fetch failed" — das ist KEIN
+ * HTTP-Fehler und kein Zeitablauf, sondern ein Abbruch auf Verbindungsebene.
+ * Von einem normalen Anschluss antwortet dieselbe Adresse in 66-608 ms mit
+ * HTTP 200 (nachgemessen 01.09.2026), also liegt es am Runner.
+ * Ein haeufiger Grund dafuer: der Runner bekommt eine IPv6-Adresse, die
+ * Gegenstelle ist ueber IPv6 aber nicht erreichbar. Diese Zeile laesst Node
+ * zuerst IPv4 aufloesen. Kostet nichts, schadet den anderen 17 Quellen nicht
+ * — und wenn es nicht hilft, sagt der Grund-Code unten, woran es sonst liegt. */
+import dns from "node:dns";
+try { dns.setDefaultResultOrder("ipv4first"); } catch {}
+
 const BROWSER_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
   "Accept": "text/csv,application/json,text/plain,*/*",
@@ -76,8 +88,29 @@ const onlyKeys = args.filter((a) => !a.startsWith("--"));
  * 15 s reichen mit Abstand: die langsamste gesunde Quelle antwortet in < 1 s. */
 const FETCH_TIMEOUT_MS = 15000;
 
+/* "fetch failed" allein sagt nichts. Der Grund steht in e.cause.code:
+ * ECONNRESET (Gegenstelle legt auf), ENOTFOUND (Name nicht aufloesbar),
+ * ECONNREFUSED, UND_ERR_CONNECT_TIMEOUT, CERT_* (TLS). Genau diese
+ * Unterscheidung entscheidet, ob eine Sperre, ein DNS- oder ein TLS-Problem
+ * vorliegt — drei voellig verschiedene Reparaturen. */
+function grundVon(e) {
+  const c = e && e.cause;
+  const code = (c && (c.code || c.errno)) || e?.code;
+  const inner = c && c.message && c.message !== e.message ? c.message : "";
+  const teile = [e?.name && e.name !== "Error" ? e.name : "", e?.message || String(e), code || "", inner]
+    .filter(Boolean);
+  return [...new Set(teile)].join(" / ");
+}
+
 async function fetchText(url) {
-  const res = await fetch(url, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  let res;
+  try {
+    res = await fetch(url, { headers: BROWSER_HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  } catch (e) {
+    const err = new Error(grundVon(e));
+    err.cause = e;
+    throw err;
+  }
   const buf = new Uint8Array(await res.arrayBuffer());
   const text = new TextDecoder("utf-8", { fatal: false }).decode(buf);
   return { status: res.status, ct: res.headers.get("content-type") || "", bytes: buf.length, text };
