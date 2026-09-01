@@ -28,9 +28,13 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # v5 statt v4 (01.09.2026): Die v4-Bausteine laufen intern auf Node 20,
+      # und GitHub warnte bei JEDEM Lauf wegen der Umstellung auf Node 24. Die
+      # node-version unten (22) ist davon unberuehrt -- sie betrifft das
+      # Skript, nicht den Baustein, der es startet.
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
 
