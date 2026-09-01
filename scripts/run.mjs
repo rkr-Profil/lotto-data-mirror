@@ -243,6 +243,25 @@ if (!probeOnly && report.length) {
       lines.push(`   ${r.key}${r.optional ? " (optional)" : ""}: ${kurz(r.grund) || "kein Grund gemeldet"}`);
     }
   }
+  /* Ausgangsadresse des Runners mitmelden (01.09.2026).
+   * An drei Tagen fielen VERSCHIEDENE, voneinander unabhaengige Quellen auf
+   * verschiedenen Netzen aus -- uk-lotto/ie-lotto mit stillem Verbindungs-
+   * Zeitablauf, heute pl-lotto mit HTTP 403 -- waehrend alle drei von einem
+   * normalen Anschluss aus tadellos antworten. Was sie gemeinsam haben, ist
+   * nicht der Betreiber, sondern der Anrufer. GitHub gibt jedem Lauf eine
+   * andere Adresse aus den Azure-Bereichen, und die stehen reichlich auf
+   * Rechenzentrums-Sperrlisten.
+   * Das ist eine VERMUTUNG. Diese Zeile macht sie pruefbar: haeufen sich die
+   * Ausfaelle ueber mehrere Laeufe auf bestimmten Adressen, traegt sie, sonst
+   * nicht. Kostet eine winzige Anfrage; scheitert sie, steht "unbekannt" da
+   * und der Lauf laeuft normal weiter. */
+  let ip = "unbekannt";
+  try {
+    const rIp = await fetch("https://api.ipify.org", { signal: AbortSignal.timeout(5000) });
+    if (rIp.ok) ip = (await rIp.text()).trim().slice(0, 45);
+  } catch { /* Diagnose darf den Lauf nie aufhalten */ }
+  lines.push("\u{1F4CD} Runner-Adresse: " + ip);
+
   const summary = lines.join("\n");
   writeFileSync(join(__dir, "..", "run-summary.txt"), summary);
   console.log("\n" + summary);
