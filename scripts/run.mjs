@@ -57,17 +57,18 @@ const FETCHERS = [
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dir, "..", "data");
-/* IPv4 zuerst (2026-09-01).
- * uk-lotto und ie-lotto melden seit zwei Tagen "fetch failed" — das ist KEIN
- * HTTP-Fehler und kein Zeitablauf, sondern ein Abbruch auf Verbindungsebene.
- * Von einem normalen Anschluss antwortet dieselbe Adresse in 66-608 ms mit
- * HTTP 200 (nachgemessen 01.09.2026), also liegt es am Runner.
- * Ein haeufiger Grund dafuer: der Runner bekommt eine IPv6-Adresse, die
- * Gegenstelle ist ueber IPv6 aber nicht erreichbar. Diese Zeile laesst Node
- * zuerst IPv4 aufloesen. Kostet nichts, schadet den anderen 17 Quellen nicht
- * — und wenn es nicht hilft, sagt der Grund-Code unten, woran es sonst liegt. */
-import dns from "node:dns";
-try { dns.setDefaultResultOrder("ipv4first"); } catch {}
+/* IPv6 ist als Ursache WIDERLEGT (01.09.2026) — hier stand ein ipv4first-Versuch.
+ * www.lottery.co.uk hat gar keinen AAAA-Record (nur A 81.0.218.44, geprueft gegen
+ * 8.8.8.8). IPv6 war also nie im Spiel, und dns.setDefaultResultOrder("ipv4first")
+ * konnte fuer diesen Host nichts aendern. Die Zeile ist deshalb wieder heraus --
+ * genau so, wie es der Commit angekuendigt hatte, der sie eingefuehrt hat.
+ *
+ * Was der Grund-Code seither meldet: UND_ERR_CONNECT_TIMEOUT, also ein
+ * Verbindungs-Zeitablauf. Kein ENOTFOUND (DNS loest auf), kein ECONNRESET
+ * (niemand legt auf), kein CERT_* (TLS kommt nicht dran). Das SYN geht raus, es
+ * kommt nichts zurueck -- die Signatur einer stillen Verwerfungsregel. WER
+ * verwirft und warum, ist weiter unbekannt und wird hier nicht behauptet.
+ * Naechster Schritt: scripts/probe-quellen.mjs. */
 
 const BROWSER_HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
