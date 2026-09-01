@@ -16,6 +16,10 @@ on:
         description: "Nur diagnostizieren (schreibt nichts) — zeigt ob die Quell-IP durchkommt"
         type: boolean
         default: false
+      quellen:
+        description: "Ersatzquellen für UK/IE sondieren (schreibt nichts) — welche Adresse kommt vom Runner durch?"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -32,7 +36,9 @@ jobs:
 
       - name: Fetch & normalize
         run: |
-          if [ "${{ inputs.probe }}" = "true" ]; then
+          if [ "${{ inputs.quellen }}" = "true" ]; then
+            node scripts/probe-quellen.mjs
+          elif [ "${{ inputs.probe }}" = "true" ]; then
             node scripts/run.mjs --probe
           else
             node scripts/run.mjs
@@ -46,7 +52,7 @@ jobs:
       # Dateien sind also konsistent. Der Job endet trotzdem rot (siehe run.mjs
       # exitCode), damit der Fehler sichtbar bleibt.
       - name: Commit changed data
-        if: ${{ always() && inputs.probe != true }}
+        if: ${{ always() && inputs.probe != true && inputs.quellen != true }}
         run: |
           git config user.name  "lotto-data-bot"
           git config user.email "actions@users.noreply.github.com"
