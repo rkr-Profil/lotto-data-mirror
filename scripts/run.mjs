@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { mergeDraws, looksLikeHtml } from "./lib/util.mjs";
+import { diagnose } from "./lib/diagnose.mjs";
 
 import * as huHatos from "./fetchers/hu-hatos.mjs";
 import * as de649 from "./fetchers/de-6-49.mjs";
@@ -151,15 +152,25 @@ for (const mod of FETCHERS) {
 
   // optional-Systeme (z. B. GR: OPAP geo-blockt Datacenter-IPs) dürfen die Action nicht
   // rot färben — Fehler werden geloggt, setzen aber hadError nur bei Pflicht-Systemen.
-  const fail = (msg) => {
+  const fail = (msg, diag) => {
     console.error(`[${meta.key}] ${msg}${meta.optional ? " (optional — kein Fehler)" : ""}`);
+    if (diag) console.error(`[${meta.key}] Diagnose: ${diag.zeile}\n[${meta.key}] → ${diag.deutung}`);
     if (!meta.optional) hadError = true;
     /* Grund MITNEHMEN, nicht nur ins Protokoll schreiben. Die Fetcher melden seit
        2026-08-27 den echten Ausfallgrund (HTTP 403 / Zeitablauf / "200 aber 0
        geparst") — der landete aber nur im Action-Log, an das man ohne Anmeldung
        nicht herankommt. Auf dem Handy stand weiterhin bloss "nicht geholt: uk-lotto",
        also genau die Ratlosigkeit, die der Umbau beseitigen sollte. */
-    report.push({ key: meta.key, ok: false, optional: !!meta.optional, grund: String(msg || "") });
+    report.push({ key: meta.key, ok: false, optional: !!meta.optional, grund: String(msg || ""), diag: diag || null });
+  };
+  /* Diagnose NACH dem letzten Fehlversuch (04.09.2026): „fetch failed" sagt
+     nur, DASS es scheiterte. Die Diagnose fragt DNS, TCP, TLS, HTTP und einen
+     Kontroll-Host einzeln ab und schreibt die Ursache in die Meldung — nicht
+     bei optionalen Systemen (deren Ausfall ist eingeplant) und nie so, dass
+     sie den Lauf aufhält. */
+  const diagnoseFuer = async () => {
+    if (meta.optional) return null;
+    try { return await diagnose(meta.url); } catch { return null; }
   };
 
   try {
@@ -204,7 +215,15 @@ for (const mod of FETCHERS) {
         await sleep(waitMs);
       }
     }
-    if (!fresh || fresh.length === 0) { fail(`${lastErr?.message || "kein Ergebnis"} — übersprungen (nach ${RETRIES} Versuchen)`); continue; }
+    /* 0 Ziehungen kann beim Ersatz rechtens sein (Irland in der 6/47-Ära: alles
+       mit 46/47). Ein Ersatz, der antwortete, aber nichts Passendes fand, ist
+       kein Ausfall — die Quelle ist erreichbar. */
+    if (fresh && fresh.length === 0 && fresh.quelle) {
+      console.log(`[${meta.key}] Ersatzquelle ${fresh.quelle}: erreichbar, aber keine passende Ziehung`);
+      report.push({ key: meta.key, ok: true, added: 0, total: loadExisting(meta.key).length, quelle: fresh.quelle });
+      continue;
+    }
+    if (!fresh || fresh.length === 0) { fail(`${lastErr?.message || "kein Ergebnis"} — übersprungen (nach ${RETRIES} Versuchen)`, await diagnoseFuer()); continue; }
 
     const existing = loadExisting(meta.key);
     const { merged, dropped } = mergeDraws(existing, fresh);
@@ -216,9 +235,9 @@ for (const mod of FETCHERS) {
     const net = merged.length - existing.length;
     writeFileSync(join(DATA_DIR, `${meta.key}.json`), JSON.stringify(merged));
     console.log(`[${meta.key}] OK — ${fresh.length} geparst, ${net} netto neu${dropped ? `, ${dropped} Dublette(n) entfernt` : ""}, ${merged.length} gesamt (${merged[0]?.d} … ${merged[merged.length - 1]?.d})`);
-    report.push({ key: meta.key, ok: true, added: net, total: merged.length });
+    report.push({ key: meta.key, ok: true, added: net, total: merged.length, quelle: fresh.quelle || null });
   } catch (e) {
-    fail(`FEHLER: ${e.message}`);
+    fail(`FEHLER: ${e.message}`, await diagnoseFuer());
   }
 }
 
@@ -227,10 +246,13 @@ for (const mod of FETCHERS) {
 if (!probeOnly && report.length) {
   const ok = report.filter((r) => r.ok);
   const failed = report.filter((r) => !r.ok);
-  const withNew = ok.filter((r) => r.added > 0).map((r) => `${r.key}+${r.added}`);
+  const withNew = ok.filter((r) => r.added > 0).map((r) => `${r.key}+${r.added}` + (r.quelle ? "*" : ""));
+  const ersatz = ok.filter((r) => r.quelle).map((r) => `${r.key} ← ${r.quelle}`);
   const day = new Date().toISOString().slice(0, 10);
   const lines = [`🎰 Lucky-Space ${day} — ${ok.length}/${report.length} Systeme geholt`];
   lines.push(withNew.length ? `🆕 ${withNew.join(" · ")}` : "🆕 keine neuen Ziehungen");
+  // Ersatzquelle sichtbar machen: das Sternchen oben, die Herkunft hier.
+  if (ersatz.length) lines.push("🔄 Ersatzquelle: " + ersatz.join(" · "));
   if (failed.length) {
     // Je Ausfall eine eigene Zeile MIT Grund. Gekuerzt, damit die Nachricht auch
     // bei mehreren Ausfaellen unter dem Telegram-Limit bleibt.
@@ -241,6 +263,12 @@ if (!probeOnly && report.length) {
     lines.push("⚠️ nicht geholt:");
     for (const r of failed) {
       lines.push(`   ${r.key}${r.optional ? " (optional)" : ""}: ${kurz(r.grund) || "kein Grund gemeldet"}`);
+      /* Die Diagnose in zwei Zeilen: Rohwerte, dann die Deutung. Länger als
+         der Grund, aber genau das, was man vom Handy aus wissen will. */
+      if (r.diag && r.diag.zeile) {
+        lines.push(`   🩺 ${r.diag.zeile.slice(0, 220)}`);
+        if (r.diag.deutung) lines.push(`   → ${r.diag.deutung.slice(0, 260)}`);
+      }
     }
   }
   /* Ausgangsadresse des Runners mitmelden (01.09.2026).

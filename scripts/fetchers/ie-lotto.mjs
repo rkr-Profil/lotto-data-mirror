@@ -61,6 +61,46 @@ function isoFromSlug(slug) {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
 }
 
+/* Eine Ziehung nach den Ären-Regeln übernehmen — dieselbe Prüfung für
+   Archiv und Ersatzquelle, damit beide Wege dasselbe Ergebnis liefern. */
+function nimm(draws, d, nums) {
+  if (!d || !eraOf(d)) return;
+  if (nums.length !== N_MAIN) return;
+  if (new Set(nums).size !== N_MAIN) return;
+  if (!nums.every((n) => n >= 1 && n <= 47)) return;        // Sicherheitsnetz
+  // Ära 47: die Ziehung zählt nur, wenn sie auch im 6/45-Raum liegt.
+  // In den Ären A und B ist derselbe Test die Plausibilitätsprüfung.
+  if (!nums.every((n) => n <= HI_MAIN)) return;
+  draws.push({ d, n: nums.slice().sort((a, b) => a - b) });
+}
+
+/* ERSATZQUELLE (04.09.2026): die amtliche Verlaufsseite
+     https://www.lottery.ie/results/lotto/history
+   Eine Next.js-Seite, deren Ziehungen als JSON im Seitentext liegen:
+     {"standard":{"cmsId":"1",…,"drawDates":["2026-08-29T18:45:00.000Z"],
+      "grids":[{"standard":[[17,21,33,35,38,47]],"additional":[[13]]}] …
+   cmsId 1 = Lotto, 2/3 = Lotto Plus 1/2 (nicht übernehmen). Die Zeit
+   18:45 UTC liegt am Ziehungstag selbst, der Datumsteil genügt. Rund zwei
+   Dutzend Ziehungen je Seite; läuft hinter Cloudflare, also auf anderer
+   Infrastruktur als lottery.co.uk. Geprüft 04.09.2026 gegen unsere Daten
+   (12.08., 22.08., 26.08. stimmen). Erzwingen: IE_QUELLE=amtlich. */
+const AMTLICH = "https://www.lottery.ie/results/lotto/history";
+export function parseAmtlich(html) {
+  const draws = [];
+  const re = /"standard":\{"cmsId":"1","gameLogo":"[^"]*","jackpotAmount":"[^"]*","drawDates":\["(\d{4}-\d{2}-\d{2})T[^"]*"\],"grids":\[\{"standard":\[\[([0-9,]+)\]\]/g;
+  let m;
+  while ((m = re.exec(html))) nimm(draws, m[1], m[2].split(",").map((x) => parseInt(x, 10)));
+  return draws;
+}
+async function holeAmtlich(fetchText) {
+  const r = await fetchText(AMTLICH);
+  if (r.status !== 200) throw new Error("amtlich: HTTP " + r.status);
+  const d = parseAmtlich(r.text);
+  if (!d.length && !/"cmsId":"1"/.test(r.text)) throw new Error("amtlich: HTTP 200, aber keine Ziehungsdaten im Seitentext (" + r.bytes + " Bytes)");
+  d.quelle = "lottery.ie (Ersatz)";
+  return d;
+}
+
 export function parse(html) {
   const draws = [];
   const parts = html.split(/href="\/irish-lotto\/results-/).slice(1);
@@ -77,13 +117,7 @@ export function parse(html) {
     const nums = [];
     let m;
     while ((m = re.exec(seg))) nums.push(parseInt(m[1], 10));
-    if (nums.length !== N_MAIN) continue;
-    if (new Set(nums).size !== N_MAIN) continue;
-    if (!nums.every((n) => n >= 1 && n <= 47)) continue;        // Sicherheitsnetz
-    // Ära 47: die Ziehung zählt nur, wenn sie auch im 6/45-Raum liegt.
-    // In den Ären A und B ist derselbe Test die Plausibilitätsprüfung.
-    if (!nums.every((n) => n <= HI_MAIN)) continue;
-    draws.push({ d, n: nums.slice().sort((a, b) => a - b) });
+    nimm(draws, d, nums);
   }
   return draws;
 }
@@ -91,6 +125,7 @@ export function parse(html) {
 export async function fetchDraws({ fetchText }) {
   const nowY = new Date().getUTCFullYear();
   const fromY = process.env.IE_FROM_YEAR ? parseInt(process.env.IE_FROM_YEAR, 10) : nowY;
+  if (process.env.IE_QUELLE === "amtlich") return await holeAmtlich(fetchText);
   const draws = [];
   /* Gruende sammeln statt sie zu verschlucken.
      Vorher hiess es hier `catch { continue }` und `if (r.status !== 200) continue`.
@@ -110,6 +145,16 @@ export async function fetchDraws({ fetchText }) {
     draws.push(...d);
     await new Promise((res) => setTimeout(res, 120));
   }
-  if (!draws.length && probleme.length) throw new Error(probleme.join(" \u00b7 "));
-  return draws;
+  if (draws.length) return draws;
+  /* Archiv nicht erreichbar → amtliche Verlaufsseite. Beide Gründe bleiben
+     in der Meldung, falls auch der Ersatz scheitert. Achtung: in der 6/47-Ära
+     kann der Ersatz zu Recht 0 Ziehungen liefern (alle mit 46/47) — das ist
+     dann kein Fehler, sondern „nichts Passendes". */
+  try {
+    const e = await holeAmtlich(fetchText);
+    console.warn("[ie-lotto] Archiv: " + probleme.join(" \u00b7 ") + " \u2192 Ersatzquelle " + e.quelle + " (" + e.length + " Ziehung(en))");
+    return e;
+  } catch (e2) {
+    throw new Error(probleme.join(" \u00b7 ") + " \u00b7 " + (e2 && e2.message ? e2.message : String(e2)));
+  }
 }

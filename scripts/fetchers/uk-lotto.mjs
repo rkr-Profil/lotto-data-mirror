@@ -11,6 +11,17 @@
  * Bonusball wird verworfen (Modell 6/59, ein Pool) — wie bei BE/DE 6/49.
  *
  * Täglich: nur das aktuelle Jahr. Backfill: UK_FROM_YEAR=2015 setzen.
+ *
+ * ERSATZQUELLE (04.09.2026): der amtliche Feed der National Lottery,
+ *   https://www.national-lottery.co.uk/results/lotto/draw-history/csv
+ * Liefert trotz Namens XML, immer nur die JÜNGSTE Ziehung, beide Runden
+ * getrennt als <set>L9</set> (Runde 1) und <set>L10</set> (Runde 2) — am
+ * 02.09.2026 gegen lottery.co.uk geprüft, Zuordnung stimmt. Läuft auf
+ * CloudFront, also auf anderer Infrastruktur als lottery.co.uk (81.0.218.x),
+ * das den GitHub-Runner seit 30.08.2026 still verwirft. Weil täglich gelaufen
+ * wird und Mi/Sa gezogen, reicht „nur die jüngste" für den Nachschub; den
+ * Bestand gibt es nur über das Archiv.
+ * Erzwingen: UK_QUELLE=amtlich (zum Prüfen von Hand).
  */
 const ARCH = (year) => `https://www.lottery.co.uk/lotto/results/archive-${year}`;
 const FORMAT_START = "2015-10-10";           // erste 6/59-Ziehung
@@ -65,9 +76,49 @@ export function parse(html) {
   return draws;
 }
 
+const AMTLICH = "https://www.national-lottery.co.uk/results/lotto/draw-history/csv";
+const SET_RUNDE = { L9: 1, L10: 2 };
+
+/* Der XML-Feed: je <draw-results><game><draw> ein Termin, darunter ein oder
+   zwei <balls>-Blöcke mit <set>. Ein Block ohne bekanntes Set (alte Form vor
+   06/2026) wird als Einzelziehung ohne `r` übernommen. */
+export function parseAmtlich(xml) {
+  const draws = [];
+  const games = xml.split(/<game\b/).slice(1);
+  for (const g of games) {
+    if (!/type="lotto"/.test(g.slice(0, 80))) continue;
+    const d = (g.match(/<draw-date>(\d{4}-\d{2}-\d{2})<\/draw-date>/) || [])[1];
+    if (!d || d < FORMAT_START) continue;
+    const bloecke = g.split(/<balls>/).slice(1);
+    for (const b of bloecke) {
+      const set = (b.match(/<set>([A-Z0-9]+)<\/set>/) || [])[1];
+      const nums = [];
+      const re = /<ball number="\d+">(\d{1,2})<\/ball>/g;
+      let m;
+      while ((m = re.exec(b))) nums.push(parseInt(m[1], 10));
+      if (!valid(nums)) continue;
+      const eintrag = { d, n: nums.slice().sort((a, c) => a - c) };
+      const r = set && SET_RUNDE[set];
+      if (r) eintrag.r = r; else if (bloecke.length > 1) continue;   // zwei Blöcke, unbekanntes Set: nicht raten
+      draws.push(eintrag);
+    }
+  }
+  return draws;
+}
+
+async function holeAmtlich(fetchText) {
+  const r = await fetchText(AMTLICH);
+  if (r.status !== 200) throw new Error("amtlich: HTTP " + r.status);
+  const d = parseAmtlich(r.text);
+  if (!d.length) throw new Error("amtlich: HTTP 200, aber 0 Ziehungen geparst (" + r.bytes + " Bytes)");
+  d.quelle = "national-lottery.co.uk (Ersatz)";
+  return d;
+}
+
 export async function fetchDraws({ fetchText }) {
   const nowY = new Date().getUTCFullYear();
   const fromY = process.env.UK_FROM_YEAR ? parseInt(process.env.UK_FROM_YEAR, 10) : nowY;
+  if (process.env.UK_QUELLE === "amtlich") return await holeAmtlich(fetchText);
   const draws = [];
   /* Gruende sammeln statt sie zu verschlucken.
      Vorher hiess es hier `catch { continue }` und `if (r.status !== 200) continue`.
@@ -87,6 +138,14 @@ export async function fetchDraws({ fetchText }) {
     draws.push(...d);
     await new Promise((res) => setTimeout(res, 120));
   }
-  if (!draws.length && probleme.length) throw new Error(probleme.join(" \u00b7 "));
-  return draws;
+  if (draws.length) return draws;
+  /* Archiv nicht erreichbar → amtlicher Feed. Beide Gründe bleiben in der
+     Meldung, falls auch der Ersatz scheitert. */
+  try {
+    const e = await holeAmtlich(fetchText);
+    console.warn("[uk-lotto] Archiv: " + probleme.join(" \u00b7 ") + " \u2192 Ersatzquelle " + e.quelle + " (" + e.length + " Ziehung(en))");
+    return e;
+  } catch (e2) {
+    throw new Error(probleme.join(" \u00b7 ") + " \u00b7 " + (e2 && e2.message ? e2.message : String(e2)));
+  }
 }
