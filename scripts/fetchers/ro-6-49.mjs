@@ -35,10 +35,15 @@ export async function fetchDraws({ fetchText }) {
        (<h3 class="ds-h3">2026-09-03 …) mit den Zahlen daneben. Die Detailseiten gibt es
        weiter -- sie bleiben die Quelle der Zahlen, weil das Archiv je Termin zwei
        gleichlautende Zeilen zeigt („2 extrageri"). Lauf vom 08.09.: 2x HTTP 200, 0 Termine. */
+    /* 09.09.2026: schon wieder anders -- die Ueberschrift lautet jetzt
+       „duminică, 06.09.2026" (Wochentag, TT.MM.JJJJ) und ?year= wird ignoriert.
+       Deshalb beide Datumsformen, nach ISO normalisiert. Der Lauf meldet weiter
+       „0 Termine", sobald die Seite ein drittes Mal wechselt. */
+    const iso = (t) => /^\d{4}-/.test(t) ? t : t.replace(/^(\d{2})\.(\d{2})\.(\d{4})$/, "$3-$2-$1");
     const found = [
       ...r.text.matchAll(/rezultate-(\d{4}-\d{2}-\d{2})\//g),
-      ...r.text.matchAll(/ds-h3">\s*(\d{4}-\d{2}-\d{2})/g)
-    ].map((m) => m[1]);
+      ...r.text.matchAll(/ds-h3">[^<\d]*(\d{4}-\d{2}-\d{2}|\d{2}\.\d{2}\.\d{4})/g)
+    ].map((m) => iso(m[1]));
     const uniq = [...new Set(found)].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));   // neueste zuerst
     if (!uniq.length) stoer.leer(r.bytes);        // Seite kam an, enthielt aber keine Termine
     slugs.push(...(perYearLimit === Infinity ? uniq : uniq.slice(0, perYearLimit)));
