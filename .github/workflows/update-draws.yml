@@ -80,7 +80,7 @@ jobs:
           if [ -z "$TELEGRAM_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
             echo "Telegram-Secrets nicht gesetzt — keine Benachrichtigung."; exit 0
           fi
-          if [ -f run-summary.txt ]; then MSG="$(cat run-summary.txt)"; else MSG="🎰 Lucky-Space: Lauf beendet, aber keine Zusammenfassung — vermutlich Absturz vor dem Ende."; fi
+          if [ -f run-summary.txt ]; then MSG="$(cat run-summary.txt)"; else MSG="🎰 AleaMatrix: Lauf beendet, aber keine Zusammenfassung — vermutlich Absturz vor dem Ende."; fi
           # Auslöser und Ergebnis mitschicken: so ist am Handy sofort erkennbar, ob
           # der Lauf der geplante war (schedule) oder ein manueller, und ob er rot wurde.
           MSG="${MSG}"$'\n'"— Auslöser: ${{ github.event_name }} · Ergebnis: ${{ job.status }}"

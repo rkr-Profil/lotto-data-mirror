@@ -1,6 +1,6 @@
 # lotto-data-mirror
 
-Normalisierter Ziehungs-Mirror für **Lucky-Space**. Eine GitHub-Action holt täglich
+Normalisierter Ziehungs-Mirror für **AleaMatrix** (bis 08/2026 Lucky-Space). Eine GitHub-Action holt täglich
 die Quell-Daten der einzelnen Lottosysteme, parst sie in ein **einheitliches JSON**
 und committet das Ergebnis nach `data/<key>.json`. App und Supabase-Function lesen
 danach nur noch diese sauberen Roh-URLs — nicht mehr die quirkigen Originalquellen.
@@ -16,7 +16,7 @@ und liefern der App am Ende immer dieselbe, geprüfte JSON-Struktur.
 [ { "d": "2026-07-16", "n": [10,11,15,17,26,30] },
   { "d": "...", "n": [...], "e": [...optional Zusatzzahlen...] } ]
 ```
-Identisch zum Format, das die Lucky-Space-App in `data/*.json` erwartet.
+Identisch zum Format, das die AleaMatrix-App in `data/*.json` erwartet.
 
 ## Consumption in der App
 `raw.githubusercontent.com/<user>/lotto-data-mirror/main/data/<key>.json`

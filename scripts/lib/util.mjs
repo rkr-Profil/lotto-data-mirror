@@ -1,7 +1,7 @@
 /**
  * Geteilte Parser-Utils für alle Mirror-Fetcher.
  * Ausgabeformat je Ziehung: { d:"YYYY-MM-DD", n:[...sorted], e?:[...sorted] }
- * (identisch zum Format, das die Lucky-Space-App in data/*.json erwartet).
+ * (identisch zum Format, das die AleaMatrix-App in data/*.json erwartet).
  */
 
 export const isInt = (s) => /^\d+$/.test(String(s).trim());

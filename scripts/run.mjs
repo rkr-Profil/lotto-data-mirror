@@ -249,7 +249,7 @@ if (!probeOnly && report.length) {
   const withNew = ok.filter((r) => r.added > 0).map((r) => `${r.key}+${r.added}` + (r.quelle ? "*" : ""));
   const ersatz = ok.filter((r) => r.quelle).map((r) => `${r.key} ← ${r.quelle}`);
   const day = new Date().toISOString().slice(0, 10);
-  const lines = [`🎰 Lucky-Space ${day} — ${ok.length}/${report.length} Systeme geholt`];
+  const lines = [`🎰 AleaMatrix ${day} — ${ok.length}/${report.length} Systeme geholt`];
   lines.push(withNew.length ? `🆕 ${withNew.join(" · ")}` : "🆕 keine neuen Ziehungen");
   // Ersatzquelle sichtbar machen: das Sternchen oben, die Herkunft hier.
   if (ersatz.length) lines.push("🔄 Ersatzquelle: " + ersatz.join(" · "));
