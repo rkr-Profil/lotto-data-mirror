@@ -127,6 +127,21 @@ export function plLotto(csvText, { nMain = 6, hiMain = 49 } = {}) {
     if (!nums || !inRange(nums, nMain, hiMain)) continue;
     draws.push({ d: date, n: nums.slice().sort((a, b) => a - b) });
   }
+  // Rundennummer bei zwei Ziehungen am selben Tag (2026-09-17): von 1965-03-07 bis
+  // 1991-09-28 wurde sonntags ZWEIMAL gezogen, 956 Termine. Ohne `r` schluesselt
+  // mergeDraws() nach Datum und die zweite Ziehung ueberschrieb still die erste
+  // (Spiegel 6.447 statt 7.405 Ziehungen, BEFUNDE_offen.md Nr. 11). Reihenfolge
+  // der Datei = Ziehungsnummer, also erste Zeile Runde 1. Einzelne Tage bleiben
+  // ohne `r`, damit sich fuer sie nichts aendert.
+  const proTag = new Map();
+  for (const d of draws) proTag.set(d.d, (proTag.get(d.d) || 0) + 1);
+  const laufend = new Map();
+  for (const d of draws) {
+    if (proTag.get(d.d) < 2) continue;
+    const r = (laufend.get(d.d) || 0) + 1;
+    laufend.set(d.d, r);
+    d.r = r;
+  }
   return draws;
 }
 
