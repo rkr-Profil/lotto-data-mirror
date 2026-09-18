@@ -20,6 +20,10 @@ on:
         description: "Ersatzquellen für UK/IE sondieren (schreibt nichts) — welche Adresse kommt vom Runner durch?"
         type: boolean
         default: false
+      pl_debug:
+        description: "Polen: Rohantwort der LOTTO OpenAPI ins Protokoll schreiben (zum Einrichten)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -39,6 +43,11 @@ jobs:
           node-version: "22"
 
       - name: Fetch & normalize
+        env:
+          # LOTTO OpenAPI (Totalizator Sportowy), Schluessel seit 18.09.2026 -- ohne ihn faellt
+          # pl-lotto still auf wynikilotto zurueck. PL_OPENAPI_DEBUG=1 nur zum Einrichten.
+          PL_OPENAPI_KEY: ${{ secrets.PL_OPENAPI_KEY }}
+          PL_OPENAPI_DEBUG: ${{ inputs.pl_debug && '1' || '' }}
         run: |
           if [ "${{ inputs.quellen }}" = "true" ]; then
             node scripts/probe-quellen.mjs
