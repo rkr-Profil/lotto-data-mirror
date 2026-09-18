@@ -5,10 +5,16 @@
  * Schluessel am 18.09.2026 auf Antrag erteilt, liegt NUR als GitHub-Secret PL_OPENAPI_KEY).
  *   GET https://developers.lotto.pl/api/open/v1/lotteries/draw-results/last-results-per-game?gameType=Lotto
  *   Header: secret: <Schluessel>   (Spezifikation: https://developers.lotto.pl/)
- * Liefert die juengste Ziehung; bei taeglichem Lauf (Di/Do/Sa gezogen) reicht das. Die
- * Antwortform ist in der Spezifikation nur skizziert (`results: []`), deshalb liest der
- * Parser jede Sechsergruppe 1..49 unter einem Eintrag mit gameType "Lotto" -- und NICHT
- * "LottoPlus" (eigene Ziehung desselben Abends). PL_OPENAPI_DEBUG=1 gibt die Rohantwort aus.
+ * Liefert die juengste Ziehung; bei taeglichem Lauf (Di/Do/Sa gezogen) reicht das.
+ * Antwortform (Rohantwort vom 18.09.2026, ein Eintrag je Spiel):
+ *   [{ drawSystemId:7406, drawDate:"2026-09-17T20:00:00Z", gameType:"Lotto",
+ *      results:[{ gameType:"Lotto", resultsJson:[38,12,2,41,5,44], specialResults:[] }] },
+ *    { … gameType:"LottoPlus", results:[{ resultsJson:[40,46,45,19,2,21] }] }]
+ * Genommen wird results[].resultsJson des Eintrags gameType "Lotto"; "LottoPlus" ist die
+ * zweite Ziehung desselben Abends und gehoert nicht in dieses System. drawSystemId ist die
+ * laufende Ziehungsnummer (7406 = 17.09.2026, deckt sich mit der Zaehlung der CSV).
+ * Zur Sicherheit bleibt die generische Suche nach Sechsergruppen als zweiter Weg;
+ * PL_OPENAPI_DEBUG=1 gibt die Rohantwort aus.
  *
  * ERSATZ: wynikilotto.net.pl (private Ergebnisseite, Voll-CSV ab 1957; Format nr,DD.MM.YYYY,n1..n6).
  * Greift ohne Schluessel oder bei Ausfall der OpenAPI; Telegram meldet dann „pl-lotto ← wynikilotto".
@@ -65,8 +71,11 @@ async function holeOpenApi(key) {
   for (const e of eintraege) {
     if (e && typeof e.gameType === "string" && e.gameType !== "Lotto") continue;
     const d = e && e.drawDate ? isoVon(e.drawDate) : null;
-    const gruppen = []; sammle(e, 0, gruppen);
-    if (d && gruppen.length) draws.push({ d, n: gruppen[0].sort((a, b) => a - b) });
+    // Erster Weg: results[].resultsJson (belegte Form); zweiter Weg: generische Suche.
+    const direkt = Array.isArray(e && e.results) ? e.results.map((r) => r && r.resultsJson).find((a) => Array.isArray(a) && a.length === 6) : null;
+    const gruppen = direkt ? [direkt.slice()] : []; if (!gruppen.length) sammle(e, 0, gruppen);
+    const n = gruppen[0];
+    if (d && n && n.every((x) => Number.isInteger(x) && x >= 1 && x <= 49) && new Set(n).size === 6) draws.push({ d, n: n.slice().sort((a, b) => a - b) });
   }
   if (!draws.length) throw new Error("OpenAPI: HTTP 200, aber keine Lotto-Ziehung in der Antwort (PL_OPENAPI_DEBUG=1 zeigt sie)");
   return draws;
