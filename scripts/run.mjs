@@ -250,6 +250,11 @@ if (!probeOnly && report.length) {
   const ersatz = ok.filter((r) => r.quelle).map((r) => `${r.key} ← ${r.quelle}`);
   const day = new Date().toISOString().slice(0, 10);
   const lines = [`🎰 AleaMatrix ${day} — ${ok.length}/${report.length} Systeme geholt`];
+  /* Wiederholungslauf (20.09.2026): der Workflow startet sich bei Ausfaellen alle
+     5 Minuten neu, nur fuer die ausgefallenen Systeme (siehe update-draws.yml).
+     VERSUCH/VERSUCH_MAX kommen aus dem Workflow; beim ersten Lauf steht hier nichts. */
+  const versuch = Number(process.env.VERSUCH || 1), versuchMax = Number(process.env.VERSUCH_MAX || 1);
+  if (versuch > 1) lines.push(`🔁 Wiederholung ${versuch}/${versuchMax}${onlyKeys.length ? " — nur " + onlyKeys.join(", ") : ""}`);
   lines.push(withNew.length ? `🆕 ${withNew.join(" · ")}` : "🆕 keine neuen Ziehungen");
   // Ersatzquelle sichtbar machen: das Sternchen oben, die Herkunft hier.
   if (ersatz.length) lines.push("🔄 Ersatzquelle: " + ersatz.join(" · "));
@@ -292,6 +297,8 @@ if (!probeOnly && report.length) {
 
   const summary = lines.join("\n");
   writeFileSync(join(__dir, "..", "run-summary.txt"), summary);
+  // Maschinenlesbar fuer den Workflow: welche Systeme fehlen noch (leer = alle da).
+  writeFileSync(join(__dir, "..", "run-failed.txt"), failed.map((r) => r.key).join(" "));
   console.log("\n" + summary);
 }
 

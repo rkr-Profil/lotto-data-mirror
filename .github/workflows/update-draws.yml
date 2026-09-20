@@ -24,9 +24,27 @@ on:
         description: "Polen: Rohantwort der LOTTO OpenAPI ins Protokoll schreiben (zum Einrichten)"
         type: boolean
         default: false
+      # Wiederholung (20.09.2026): Die Runner-Adressen wechseln von Lauf zu Lauf, und
+      # einzelne Quellen (lottery.co.uk) sperren manche davon still. Fehlt nach dem Lauf
+      # ein System, startet sich der Workflow nach 5 Minuten selbst neu — nur fuer die
+      # fehlenden Systeme — bis alle da sind oder VERSUCH_MAX erreicht ist. Die beiden
+      # Felder setzt der Workflow selbst; von Hand leer lassen.
+      versuch:
+        description: "Intern: laufende Nummer des Versuchs (1 = erster Lauf)"
+        type: string
+        default: "1"
+      nur:
+        description: "Intern: nur diese Systeme holen (Schluessel mit Leerzeichen), leer = alle"
+        type: string
+        default: ""
 
 permissions:
   contents: write
+  actions: write   # fuer den Neustart per workflow_dispatch (gh workflow run)
+
+env:
+  VERSUCH_MAX: "6"   # 1 Lauf + 5 Wiederholungen im 5-Minuten-Takt = ~30 Minuten
+  WARTE_SEK: "300"
 
 jobs:
   update:
@@ -48,13 +66,16 @@ jobs:
           # pl-lotto still auf wynikilotto zurueck. PL_OPENAPI_DEBUG=1 nur zum Einrichten.
           PL_OPENAPI_KEY: ${{ secrets.PL_OPENAPI_KEY }}
           PL_OPENAPI_DEBUG: ${{ inputs.pl_debug && '1' || '' }}
+          VERSUCH: ${{ inputs.versuch || '1' }}
+          NUR: ${{ inputs.nur }}
         run: |
           if [ "${{ inputs.quellen }}" = "true" ]; then
             node scripts/probe-quellen.mjs
           elif [ "${{ inputs.probe }}" = "true" ]; then
             node scripts/run.mjs --probe
           else
-            node scripts/run.mjs
+            # $NUR unquotiert: leer = alle Systeme, sonst die Schluessel als einzelne Argumente
+            node scripts/run.mjs $NUR
           fi
 
       # always(): Ein einzelnes hakendes Land darf NICHT verhindern, dass die
@@ -77,11 +98,30 @@ jobs:
             echo "Keine Änderungen."
           fi
 
+      # Wiederholung noetig? run.mjs schreibt die fehlenden Systeme nach run-failed.txt.
+      # Ergebnis als Schritt-Ausgaben: fehlend, naechster Versuch (leer = keiner mehr).
+      - name: Wiederholung pruefen
+        id: wdh
+        if: ${{ always() && inputs.probe != true && inputs.quellen != true }}
+        run: |
+          FEHLEND="$(cat run-failed.txt 2>/dev/null | tr -s ' ' | sed 's/^ *//;s/ *$//')"
+          V="${{ inputs.versuch || '1' }}"
+          echo "fehlend=$FEHLEND" >> "$GITHUB_OUTPUT"
+          if [ -n "$FEHLEND" ] && [ "$V" -lt "$VERSUCH_MAX" ]; then
+            echo "naechster=$((V+1))" >> "$GITHUB_OUTPUT"
+            echo "Fehlend: $FEHLEND — Versuch $((V+1))/$VERSUCH_MAX in $WARTE_SEK s."
+          else
+            echo "naechster=" >> "$GITHUB_OUTPUT"
+            [ -n "$FEHLEND" ] && echo "Fehlend: $FEHLEND — keine Wiederholung mehr (Versuch $V/$VERSUCH_MAX)." || echo "Alle Systeme da."
+          fi
+
       # Schickt die run-summary.txt (welche Systeme geholt wurden) per Telegram-Bot ans Handy.
+      # Bei Wiederholungslaeufen nur melden, wenn alles da ist oder es der letzte Versuch war —
+      # sonst kaemen bis zu sechs Meldungen fuer einen Ausfall.
       # Voraussetzung: Repo-Secrets TELEGRAM_TOKEN (von @BotFather) + TELEGRAM_CHAT_ID.
       # Ohne die Secrets wird der Schritt sauber übersprungen.
       - name: Handy-Benachrichtigung (Telegram)
-        if: ${{ always() && inputs.probe != true }}
+        if: ${{ always() && inputs.probe != true && ((inputs.versuch || '1') == '1' || steps.wdh.outputs.fehlend == '' || steps.wdh.outputs.naechster == '') }}
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -93,8 +133,27 @@ jobs:
           # Auslöser und Ergebnis mitschicken: so ist am Handy sofort erkennbar, ob
           # der Lauf der geplante war (schedule) oder ein manueller, und ob er rot wurde.
           MSG="${MSG}"$'\n'"— Auslöser: ${{ github.event_name }} · Ergebnis: ${{ job.status }}"
+          if [ -n "${{ steps.wdh.outputs.naechster }}" ]; then
+            MSG="${MSG}"$'\n'"🔁 Wiederholung ${{ steps.wdh.outputs.naechster }}/${VERSUCH_MAX} in 5 Min für: ${{ steps.wdh.outputs.fehlend }}"
+          elif [ -n "${{ steps.wdh.outputs.fehlend }}" ] && [ "${{ inputs.versuch || '1' }}" != "1" ]; then
+            MSG="${MSG}"$'\n'"⛔ Nach ${VERSUCH_MAX} Versuchen weiter offen: ${{ steps.wdh.outputs.fehlend }}"
+          fi
           curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
             --data-urlencode "text=${MSG}" \
             --data-urlencode "disable_web_page_preview=true" >/dev/null \
             && echo "Telegram-Benachrichtigung gesendet." || echo "Telegram-Benachrichtigung fehlgeschlagen (nicht kritisch)."
+
+      # 5 Minuten warten, dann sich selbst neu starten — nur fuer die fehlenden Systeme.
+      # GITHUB_TOKEN darf workflow_dispatch ausloesen (Ausnahme von der Regel, dass
+      # Token-Ereignisse keine neuen Laeufe starten). Neuer Lauf = neue Runner-Adresse.
+      - name: Wiederholung starten
+        if: ${{ always() && steps.wdh.outputs.naechster != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep "$WARTE_SEK"
+          gh workflow run update-draws.yml --ref "${{ github.ref_name }}" \
+            -f versuch="${{ steps.wdh.outputs.naechster }}" \
+            -f nur="${{ steps.wdh.outputs.fehlend }}"
+          echo "Versuch ${{ steps.wdh.outputs.naechster }} ausgeloest fuer: ${{ steps.wdh.outputs.fehlend }}"
