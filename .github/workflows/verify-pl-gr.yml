@@ -11,6 +11,10 @@ on:
         description: "pl, gr oder leer = beide"
         type: string
         default: ""
+      pl_ab:
+        description: "Polen: nur Tage VOR diesem Datum (JJJJ-MM-TT) - zum Fortsetzen, leer = ab heute"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -27,6 +31,8 @@ jobs:
       - name: Abgleich
         env:
           PL_OPENAPI_KEY: ${{ secrets.PL_OPENAPI_KEY }}
+          PL_AB: ${{ inputs.pl_ab }}
+          PL_BUDGET_MIN: "95"
         run: node scripts/verify-pl-gr.mjs ${{ inputs.was }}
       - name: Bericht sichern
         if: ${{ always() }}

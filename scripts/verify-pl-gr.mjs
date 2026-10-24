@@ -121,27 +121,48 @@ async function pruefePL() {
   }
   if (form === null) { kurz.push("⛔ PL: keine Abfrageform liefert Zahlen (Protokoll lesen)"); return; }
   log(`PL: Abfrageform ${form}`);
-  const tage = [...new Set(uns.map((x) => x.d))];
-  const amtlich = []; let fehler = 0;
-  for (let i = 0; i < tage.length; i++) {
-    const r = await holeJson(varianten(tage[i])[form], H);
-    if (r.status !== 200) { fehler++; if (fehler <= 20) log(`PL ${tage[i]}: HTTP ${r.status} ${r.text.slice(0, 100)}`); if (fehler > 300) { log("PL: zu viele Fehler, Abbruch"); break; } continue; }
-    try { for (const n of plZahlen(JSON.parse(r.text))) amtlich.push({ d: tage[i], n }); } catch { fehler++; }
-    if (i % 500 === 0) console.log(`PL … ${i}/${tage.length}`);
-    await pause(120);
+  /* Neueste zuerst, je 4 Tage gleichzeitig, mit Zeitbudget: Der erste Lauf (24.10.2026)
+     brauchte fuer alle ~5 500 Tage einzeln mehr als zwei Stunden und lief in den Abbruch,
+     ohne einen Bericht zu hinterlassen. Jetzt wird nach PL_BUDGET_MIN abgebrochen und nur
+     der abgefragte Zeitraum verglichen; mit PL_AB=JJJJ-MM-TT geht es beim naechsten Lauf
+     weiter zurueck (der Bericht nennt das Datum). */
+  const ab = process.env.PL_AB || "9999";
+  const tage = [...new Set(uns.map((x) => x.d))].filter((d) => d < ab).sort().reverse();
+  const ende = Date.now() + (+process.env.PL_BUDGET_MIN || 90) * 60000;
+  const amtlich = [], gefragt = new Set(); let fehler = 0, abbruch = false;
+  for (let i = 0; i < tage.length && !abbruch; i += 4) {
+    if (Date.now() > ende) { log(`PL: Zeitbudget erreicht nach ${i} von ${tage.length} Tagen — weiter mit PL_AB=${tage[i - 1]}`); break; }
+    const teil = tage.slice(i, i + 4);
+    const antworten = await Promise.all(teil.map((d) => holeJson(varianten(d)[form], H)));
+    antworten.forEach((r, j) => {
+      const d = teil[j];
+      if (r.status !== 200) { fehler++; if (fehler <= 20) log(`PL ${d}: HTTP ${r.status} ${r.text.slice(0, 100)}`); if (fehler > 300) { log("PL: zu viele Fehler, Abbruch"); abbruch = true; } return; }
+      gefragt.add(d);
+      try { for (const n of plZahlen(JSON.parse(r.text))) amtlich.push({ d, n }); } catch { fehler++; }
+    });
+    if (i % 400 === 0) { log(`PL … ${i}/${tage.length} (bis ${teil.at(-1)})`); sichern(); }
+    await pause(150);
   }
-  log(`PL: ${amtlich.length} amtliche Ziehungen an ${tage.length} Tagen geholt, ${fehler} Fehler`);
-  vergleiche("PL Lotto", uns, amtlich, { abDatum: tage[0] });
+  log(`PL: ${amtlich.length} amtliche Ziehungen an ${gefragt.size} abgefragten Tagen, ${fehler} Fehler`);
+  if (!gefragt.size) return;
+  const aeltester = [...gefragt].sort()[0];
+  vergleiche(`PL Lotto (${aeltester} bis heute)`, uns.filter((x) => gefragt.has(x.d)), amtlich, { abDatum: aeltester });
   // Tage, an denen die Schnittstelle schlicht nichts lieferte, sind kein Datenfehler:
   // Liste getrennt ausweisen, damit "nur bei uns" richtig gelesen wird.
-  const leer = new Set(tage); for (const x of amtlich) leer.delete(x.d);
-  log(`   davon Tage ohne amtliche Antwort: ${leer.size} (erste: ${[...leer].slice(0, 10).join(", ")})`);
+  const leer = new Set(gefragt); for (const x of amtlich) leer.delete(x.d);
+  log(`   davon Tage ohne amtliche Zahlen: ${leer.size} (erste: ${[...leer].sort().slice(0, 10).join(", ")})`);
+}
+
+/* Bericht und Telegram-Zusammenfassung schreiben — auch zwischendurch, damit ein
+   abgebrochener Lauf nicht alles verliert. */
+function sichern() {
+  mkdirSync("pruefberichte", { recursive: true });
+  writeFileSync(`pruefberichte/pl-gr-${heute}.txt`, zeilen.join("\n") + "\n");
+  writeFileSync("run-summary.txt", ["🔎 Abgleich PL/GR gegen amtliche Quellen", ...kurz, `Bericht: pruefberichte/pl-gr-${heute}.txt`].join("\n"));
 }
 
 const was = process.argv.slice(2);
 log(`Abgleich PL/GR — ${new Date().toISOString()}`);
-if (!was.length || was.includes("gr")) { try { await pruefeGR(); } catch (e) { log("GR Absturz: " + e.message); kurz.push("⛔ GR: Absturz " + e.message); } }
+if (!was.length || was.includes("gr")) { try { await pruefeGR(); } catch (e) { log("GR Absturz: " + e.message); kurz.push("⛔ GR: Absturz " + e.message); } sichern(); }
 if (!was.length || was.includes("pl")) { try { await pruefePL(); } catch (e) { log("PL Absturz: " + e.message); kurz.push("⛔ PL: Absturz " + e.message); } }
-mkdirSync("pruefberichte", { recursive: true });
-writeFileSync(`pruefberichte/pl-gr-${heute}.txt`, zeilen.join("\n") + "\n");
-writeFileSync("run-summary.txt", ["🔎 Abgleich PL/GR gegen amtliche Quellen", ...kurz, `Bericht: pruefberichte/pl-gr-${heute}.txt`].join("\n"));
+sichern();
