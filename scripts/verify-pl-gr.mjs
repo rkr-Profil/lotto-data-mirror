@@ -139,12 +139,13 @@ async function pruefePL() {
     const antworten = await Promise.all(teil.map((d) => holeJson(varianten(d)[form], H)));
     antworten.forEach((r, j) => {
       const d = teil[j];
-      if (r.status !== 200) { fehler++; if (fehler <= 20) log(`PL ${d}: HTTP ${r.status} ${r.text.slice(0, 100)}`); if (fehler > 300) { log("PL: zu viele Fehler, Abbruch"); abbruch = true; } return; }
+      if (r.status !== 200) { fehler++; if (fehler <= 20) log(`PL ${d}: HTTP ${r.status} ${r.text.slice(0, 100)}`); if (fehler > 1500 && !abbruch) { log("PL: zu viele Fehler, Abbruch"); abbruch = true; } return; }
       gefragt.add(d);
       try { for (const n of plZahlen(JSON.parse(r.text))) amtlich.push({ d, n }); } catch { fehler++; }
     });
     if (i % 400 === 0) { log(`PL … ${i}/${tage.length} (bis ${teil.at(-1)})`); sichern(); }
-    await pause(150);
+    // Zeitablaeufe kamen 24.10.2026 in Bloecken (Schnittstelle ueberlastet?) — dann laenger warten
+    await pause(antworten.some((r) => r.status === 0) ? 20000 : 150);
   }
   log(`PL: ${amtlich.length} amtliche Ziehungen an ${gefragt.size} abgefragten Tagen, ${fehler} Fehler`);
   if (!gefragt.size) return;
