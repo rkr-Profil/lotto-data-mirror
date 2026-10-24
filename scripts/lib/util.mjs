@@ -310,16 +310,24 @@ export const HU_DOW = {
 };
 
 // Frühhistorie ohne Datumsfeld → aus Jahr + ISO-KW + Wochentag ableiten.
-export function huWeekDate(yearCell, weekCell, dayCell) {
+/** Hat das Jahr nach ISO eine Woche 53? (Do-Jahr oder Schaltjahr mit Mi-Beginn) */
+export function isoHat53(y) {
+  const dow = (d) => new Date(Date.UTC(y, 0, d)).getUTCDay();
+  return dow(1) === 4 || (dow(1) === 3 && new Date(Date.UTC(y, 1, 29)).getUTCMonth() === 1);
+}
+
+export function huWeekDate(yearCell, weekCell, dayCell, { jan1Woche = false } = {}) {
   const y = parseInt(yearCell, 10);
   const w = parseInt(weekCell, 10);
   const dow = HU_DOW[String(dayCell).trim()];
   if (!Number.isFinite(y) || y < 1988 || y > 2100) return null;
   if (!Number.isFinite(w) || w < 1 || w > 53 || !dow) return null;
   // ISO-Woche 1 = die Woche, die den 4. Januar enthält; Montag = Wochenanfang.
-  const jan4 = new Date(Date.UTC(y, 0, 4));
-  const jan4dow = jan4.getUTCDay() || 7;
-  const week1Mon = jan4.getTime() - (jan4dow - 1) * 86400000;
+  // jan1Woche: Woche 1 = die Woche mit dem 1. Januar (fuer Jahre, in denen die
+  // Quelle eine Woche 53 nennt, die es nach ISO nicht gibt — 1993, BEFUNDE Nr. 29).
+  const anker = new Date(Date.UTC(y, 0, jan1Woche ? 1 : 4));
+  const ankerDow = anker.getUTCDay() || 7;
+  const week1Mon = anker.getTime() - (ankerDow - 1) * 86400000;
   return new Date(week1Mon + ((w - 1) * 7 + (dow - 1)) * 86400000).toISOString().slice(0, 10);
 }
 
