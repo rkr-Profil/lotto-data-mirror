@@ -1,0 +1,44 @@
+Abgleich PL/GR — 2026-10-24T20:08:07.910Z
+GR: 2717 amtliche Ziehungen geholt
+
+== GR Tzoker: ab 2004-01-04 — unsere Tage 2716, amtliche Tage 2717
+   Zahlen verschieden: 0
+   nur bei uns: 0
+   nur amtlich: 1
+     2004-01-12 3-28-31-35-45
+   Joker verschieden: 0
+PL Probe 0: HTTP 200 {"totalRows":1,"items":[{"drawSystemId":4988,"drawDate":"2011-04-07T20:15:00Z","gameType":"Lotto","multiplierValue":0,"results":[{"drawDate":"2011-04-07T20:15:00Z","drawSystemId":4988,"gameType":"Lotto","resultsJson":[18,19,15,42,17,16],"specialResults":[]}],"showSpecialResults":true,"isNewEuroJackp
+PL: Abfrageform 0
+PL … 0/6465 (bis 2026-10-15)
+PL 2026-08-08: HTTP 0 drei Versuche ohne Antwort
+PL 2026-08-06: HTTP 0 drei Versuche ohne Antwort
+PL 2026-08-04: HTTP 0 drei Versuche ohne Antwort
+PL 2026-08-01: HTTP 0 drei Versuche ohne Antwort
+PL 2026-07-30: HTTP 0 drei Versuche ohne Antwort
+PL 2026-07-28: HTTP 0 drei Versuche ohne Antwort
+PL 2026-07-25: HTTP 0 drei Versuche ohne Antwort
+PL 2026-07-23: HTTP 0 drei Versuche ohne Antwort
+PL 2026-07-21: HTTP 0 drei Versuche ohne Antwort
+PL 2026-07-18: HTTP 0 drei Versuche ohne Antwort
+PL 2026-07-16: HTTP 0 drei Versuche ohne Antwort
+PL 2026-07-14: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-21: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-18: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-16: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-14: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-11: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-09: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-07: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-04: HTTP 0 drei Versuche ohne Antwort
+PL … 400/6465 (bis 2024-03-26)
+PL … 800/6465 (bis 2021-09-04)
+PL: zu viele Fehler, Abbruch
+PL: zu viele Fehler, Abbruch
+PL: zu viele Fehler, Abbruch
+PL: 881 amtliche Ziehungen an 881 abgefragten Tagen, 303 Fehler
+
+== PL Lotto (2019-04-20 bis heute): ab 2019-04-20 — unsere Tage 881, amtliche Tage 881
+   Zahlen verschieden: 0
+   nur bei uns: 0
+   nur amtlich: 0
+   davon Tage ohne amtliche Zahlen: 0 (erste: )
