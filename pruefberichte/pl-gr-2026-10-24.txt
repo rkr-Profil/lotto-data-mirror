@@ -1,4 +1,4 @@
-Abgleich PL/GR — 2026-10-24T20:08:07.910Z
+Abgleich PL/GR — 2026-10-24T20:44:25.268Z
 GR: 2717 amtliche Ziehungen geholt
 
 == GR Tzoker: ab 2004-01-04 — unsere Tage 2716, amtliche Tage 2717
@@ -6,6 +6,7 @@ GR: 2717 amtliche Ziehungen geholt
    nur bei uns: 0
    nur amtlich: 1
      2004-01-12 3-28-31-35-45
+   NACHTRAGEN {"d":"2004-01-12","n":[3,28,31,35,45],"e":[8]}
    Joker verschieden: 0
 PL Probe 0: HTTP 200 {"totalRows":1,"items":[{"drawSystemId":4988,"drawDate":"2011-04-07T20:15:00Z","gameType":"Lotto","multiplierValue":0,"results":[{"drawDate":"2011-04-07T20:15:00Z","drawSystemId":4988,"gameType":"Lotto","resultsJson":[18,19,15,42,17,16],"specialResults":[]}],"showSpecialResults":true,"isNewEuroJackp
 PL: Abfrageform 0
@@ -18,26 +19,29 @@ PL 2026-07-30: HTTP 0 drei Versuche ohne Antwort
 PL 2026-07-28: HTTP 0 drei Versuche ohne Antwort
 PL 2026-07-25: HTTP 0 drei Versuche ohne Antwort
 PL 2026-07-23: HTTP 0 drei Versuche ohne Antwort
-PL 2026-07-21: HTTP 0 drei Versuche ohne Antwort
-PL 2026-07-18: HTTP 0 drei Versuche ohne Antwort
-PL 2026-07-16: HTTP 0 drei Versuche ohne Antwort
-PL 2026-07-14: HTTP 0 drei Versuche ohne Antwort
+PL 2026-05-07: HTTP 0 drei Versuche ohne Antwort
+PL 2026-05-05: HTTP 0 drei Versuche ohne Antwort
+PL 2026-05-02: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-30: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-28: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-25: HTTP 0 drei Versuche ohne Antwort
+PL 2026-04-23: HTTP 0 drei Versuche ohne Antwort
 PL 2026-04-21: HTTP 0 drei Versuche ohne Antwort
-PL 2026-04-18: HTTP 0 drei Versuche ohne Antwort
-PL 2026-04-16: HTTP 0 drei Versuche ohne Antwort
-PL 2026-04-14: HTTP 0 drei Versuche ohne Antwort
-PL 2026-04-11: HTTP 0 drei Versuche ohne Antwort
-PL 2026-04-09: HTTP 0 drei Versuche ohne Antwort
-PL 2026-04-07: HTTP 0 drei Versuche ohne Antwort
-PL 2026-04-04: HTTP 0 drei Versuche ohne Antwort
+PL 2026-02-03: HTTP 0 drei Versuche ohne Antwort
+PL 2026-01-31: HTTP 0 drei Versuche ohne Antwort
+PL 2026-01-29: HTTP 0 drei Versuche ohne Antwort
+PL 2026-01-27: HTTP 0 drei Versuche ohne Antwort
 PL … 400/6465 (bis 2024-03-26)
 PL … 800/6465 (bis 2021-09-04)
-PL: zu viele Fehler, Abbruch
-PL: zu viele Fehler, Abbruch
-PL: zu viele Fehler, Abbruch
-PL: 881 amtliche Ziehungen an 881 abgefragten Tagen, 303 Fehler
+PL … 1200/6465 (bis 2019-02-14)
+PL … 1600/6465 (bis 2016-07-26)
+PL … 2000/6465 (bis 2014-01-04)
+PL … 2400/6465 (bis 2011-06-16)
+PL … 2800/6465 (bis 2008-11-25)
+PL: Zeitbudget erreicht nach 2880 von 6465 Tagen — weiter mit PL_AB=2008-05-31
+PL: 2311 amtliche Ziehungen an 2311 abgefragten Tagen, 569 Fehler
 
-== PL Lotto (2019-04-20 bis heute): ab 2019-04-20 — unsere Tage 881, amtliche Tage 881
+== PL Lotto (2008-06-10 bis heute): ab 2008-06-10 — unsere Tage 2311, amtliche Tage 2311
    Zahlen verschieden: 0
    nur bei uns: 0
    nur amtlich: 0
