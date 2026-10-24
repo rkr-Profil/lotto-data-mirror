@@ -81,6 +81,9 @@ async function pruefeGR() {
   log(`GR: ${amtlich.length} amtliche Ziehungen geholt`);
   if (!amtlich.length) { kurz.push("⛔ GR: keine amtlichen Daten erhalten"); return; }
   vergleiche("GR Tzoker", uns, amtlich, { abDatum: amtlich.map((x) => x.d).sort()[0] });
+  // Fehlende Ziehungen vollstaendig (mit Joker) ausgeben, damit man sie nachtragen kann
+  const unsTage = new Set(uns.map((x) => x.d));
+  amtlich.filter((x) => !unsTage.has(x.d)).forEach((x) => log(`   NACHTRAGEN ${JSON.stringify({ d: x.d, n: x.n.slice().sort((a, b) => a - b), e: x.e })}`));
   // Joker getrennt pruefen (Zusatzzahl)
   const ej = new Map(amtlich.map((x) => [x.d, x.e.join("-")]));
   const jokerAnders = uns.filter((x) => ej.has(x.d) && (x.e || []).join("-") !== ej.get(x.d));
