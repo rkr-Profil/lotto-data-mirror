@@ -10,11 +10,12 @@
  * Neues System hinzufügen: scripts/fetchers/<key>.mjs anlegen (export meta + parse)
  * und unten in FETCHERS registrieren. Sonst nichts.
  */
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { mergeDraws, looksLikeHtml } from "./lib/util.mjs";
 import { diagnose } from "./lib/diagnose.mjs";
+import { findeWiederholungen, meldezeilen } from "./lib/wiederholung.mjs";
 
 import * as huHatos from "./fetchers/hu-hatos.mjs";
 import * as de649 from "./fetchers/de-6-49.mjs";
@@ -126,6 +127,7 @@ function loadExisting(key) {
 
 let hadError = false;
 const report = []; // je System { key, ok, added?, total?, optional? } — für die Handy-Meldung
+const neueZiehungen = []; // { key, d, n } — fuer die Suche nach Wiederholungen/Doppelgaengern (24.10.2026)
 
 /* Pacing (2026-08-27). Vorher lief die Schleife ohne jede Pause durch, und
  * uk-lotto und ie-lotto stehen direkt hintereinander am Listenende — beide
@@ -234,6 +236,12 @@ for (const mod of FETCHERS) {
     // (Altbestand bereinigt) sein.
     const net = merged.length - existing.length;
     writeFileSync(join(DATA_DIR, `${meta.key}.json`), JSON.stringify(merged));
+    /* Welche Ziehungen sind wirklich neu? Gleicher Schluessel wie mergeDraws
+       (Datum + optionale Runde). Nur fuer die Wiederholungs-Suche unten. */
+    {
+      const alt = new Set(existing.map((d) => (d.r ? `${d.d}#${d.r}` : d.d)));
+      for (const d of merged) if (!alt.has(d.r ? `${d.d}#${d.r}` : d.d)) neueZiehungen.push({ key: meta.key, d: d.d, n: d.n || [] });
+    }
     console.log(`[${meta.key}] OK — ${fresh.length} geparst, ${net} netto neu${dropped ? `, ${dropped} Dublette(n) entfernt` : ""}, ${merged.length} gesamt (${merged[0]?.d} … ${merged[merged.length - 1]?.d})`);
     report.push({ key: meta.key, ok: true, added: net, total: merged.length, quelle: fresh.quelle || null });
   } catch (e) {
@@ -256,6 +264,18 @@ if (!probeOnly && report.length) {
   const versuch = Number(process.env.VERSUCH || 1), versuchMax = Number(process.env.VERSUCH_MAX || 1);
   if (versuch > 1) lines.push(`🔁 Wiederholung ${versuch}/${versuchMax}${onlyKeys.length ? " — nur " + onlyKeys.join(", ") : ""}`);
   lines.push(withNew.length ? `🆕 ${withNew.join(" · ")}` : "🆕 keine neuen Ziehungen");
+  /* Wiederholung / Doppelgaenger (24.10.2026): gleiche Hauptzahlen wie eine
+     fruehere Ziehung derselben Lotterie oder einer anderen. Ein moeglicher
+     Presse-Aufhaenger fuer AleaMatrix. Darf den Lauf nie stoeren. */
+  try {
+    if (neueZiehungen.length) {
+      const alle = {};
+      for (const f of readdirSync(DATA_DIR).filter((x) => x.endsWith(".json"))) {
+        try { alle[f.replace(/\.json$/, "")] = JSON.parse(readFileSync(join(DATA_DIR, f), "utf8")); } catch { /* defekte Datei: auslassen */ }
+      }
+      for (const z of meldezeilen(findeWiederholungen(neueZiehungen, alle))) lines.push(z);
+    }
+  } catch (e) { console.warn("[wiederholung] Suche fehlgeschlagen:", e.message); }
   // Ersatzquelle sichtbar machen: das Sternchen oben, die Herkunft hier.
   if (ersatz.length) lines.push("🔄 Ersatzquelle: " + ersatz.join(" · "));
   if (failed.length) {
