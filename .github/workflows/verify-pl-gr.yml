@@ -1,0 +1,50 @@
+name: verify-pl-gr
+
+# Einmaliger Abgleich Polen + Griechenland gegen die amtlichen Schnittstellen
+# (24.10.2026, BEFUNDE Nr. 31 im Haupt-Repo). Nur von Hand starten:
+# GitHub → Actions → verify-pl-gr → Run workflow.
+# Schreibt NICHTS an data/ — nur den Bericht nach pruefberichte/ und eine Telegram-Meldung.
+on:
+  workflow_dispatch:
+    inputs:
+      was:
+        description: "pl, gr oder leer = beide"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Abgleich
+        env:
+          PL_OPENAPI_KEY: ${{ secrets.PL_OPENAPI_KEY }}
+        run: node scripts/verify-pl-gr.mjs ${{ inputs.was }}
+      - name: Bericht sichern
+        if: ${{ always() }}
+        run: |
+          git config user.name  "lotto-data-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if [ -n "$(git status --porcelain pruefberichte/)" ]; then
+            git add pruefberichte/
+            git commit -m "pruefbericht: PL/GR gegen amtliche Quellen $(date -u +%Y-%m-%d)"
+            git pull --rebase -q && git push
+          fi
+      - name: Telegram
+        if: ${{ always() }}
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          [ -z "$TELEGRAM_TOKEN" ] && exit 0
+          MSG="$(cat run-summary.txt 2>/dev/null || echo '🔎 Abgleich PL/GR: keine Zusammenfassung (Absturz?)')"
+          curl -s "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" --data-urlencode "text=${MSG}" >/dev/null || true
