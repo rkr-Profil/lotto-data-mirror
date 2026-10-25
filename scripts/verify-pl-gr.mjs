@@ -150,7 +150,7 @@ async function pruefePL() {
   log(`PL: ${amtlich.length} amtliche Ziehungen an ${gefragt.size} abgefragten Tagen, ${fehler} Fehler`);
   if (!gefragt.size) return;
   const aeltester = [...gefragt].sort()[0];
-  vergleiche(`PL Lotto (${aeltester} bis heute)`, uns.filter((x) => gefragt.has(x.d)), amtlich, { abDatum: aeltester });
+  vergleiche(`PL Lotto (${aeltester} bis ${[...gefragt].sort().at(-1)})`, uns.filter((x) => gefragt.has(x.d)), amtlich, { abDatum: aeltester });
   // Tage, an denen die Schnittstelle schlicht nichts lieferte, sind kein Datenfehler:
   // Liste getrennt ausweisen, damit "nur bei uns" richtig gelesen wird.
   const leer = new Set(gefragt); for (const x of amtlich) leer.delete(x.d);
