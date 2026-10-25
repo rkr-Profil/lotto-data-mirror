@@ -165,7 +165,15 @@ function sichern() {
   writeFileSync("run-summary.txt", ["🔎 Abgleich PL/GR gegen amtliche Quellen", ...kurz, `Bericht: pruefberichte/pl-gr-${heute}.txt`].join("\n"));
 }
 
-const was = process.argv.slice(2);
+/* Ein Datum im Feld „was" (25.10.2026 passiert: Datum ins falsche Feld getippt → der Lauf
+   pruefte gar nichts) gilt als PL_AB; unbekannte Woerter werden gemeldet statt ignoriert. */
+const was = [];
+for (const a of process.argv.slice(2).map((x) => x.trim().toLowerCase()).filter(Boolean)) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(a)) { process.env.PL_AB = process.env.PL_AB || a; was.push("pl"); }
+  else if (a === "pl" || a === "gr") was.push(a);
+  else { log(`Unbekannte Angabe „${a}" — erlaubt sind pl, gr oder ein Datum; geprueft werden beide.`); kurz.push(`⚠️ Unbekannte Angabe „${a}" ignoriert`); }
+}
+if (process.env.PL_AB) log(`Polen: nur Tage vor ${process.env.PL_AB}`);
 log(`Abgleich PL/GR — ${new Date().toISOString()}`);
 if (!was.length || was.includes("gr")) { try { await pruefeGR(); } catch (e) { log("GR Absturz: " + e.message); kurz.push("⛔ GR: Absturz " + e.message); } sichern(); }
 if (!was.length || was.includes("pl")) { try { await pruefePL(); } catch (e) { log("PL Absturz: " + e.message); kurz.push("⛔ PL: Absturz " + e.message); } }
