@@ -1,1 +1,49 @@
-Abgleich PL/GR — 2026-10-25T13:38:56.681Z
+Polen: nur Tage vor 2008-05-31
+Abgleich PL/GR — 2026-10-25T13:47:18.992Z
+GR: 2717 amtliche Ziehungen geholt
+
+== GR Tzoker: ab 2004-01-04 — unsere Tage 2716, amtliche Tage 2717
+   Zahlen verschieden: 0
+   nur bei uns: 0
+   nur amtlich: 1
+     2004-01-12 3-28-31-35-45
+   NACHTRAGEN {"d":"2004-01-12","n":[3,28,31,35,45],"e":[8]}
+   Joker verschieden: 0
+PL Probe 0: HTTP 200 {"totalRows":1,"items":[{"drawSystemId":4988,"drawDate":"2011-04-07T20:15:00Z","gameType":"Lotto","multiplierValue":0,"results":[{"drawDate":"2011-04-07T20:15:00Z","drawSystemId":4988,"gameType":"Lotto","resultsJson":[18,19,15,42,17,16],"specialResults":[]}],"showSpecialResults":true,"isNewEuroJackp
+PL: Abfrageform 0
+PL … 0/3585 (bis 2008-05-22)
+PL 2008-03-15: HTTP 0 drei Versuche ohne Antwort
+PL 2008-03-13: HTTP 0 drei Versuche ohne Antwort
+PL 2008-03-11: HTTP 0 drei Versuche ohne Antwort
+PL 2008-03-08: HTTP 0 drei Versuche ohne Antwort
+PL 2008-03-06: HTTP 0 drei Versuche ohne Antwort
+PL 2008-03-04: HTTP 0 drei Versuche ohne Antwort
+PL 2008-03-01: HTTP 0 drei Versuche ohne Antwort
+PL 2008-02-28: HTTP 0 drei Versuche ohne Antwort
+PL 2007-12-13: HTTP 0 drei Versuche ohne Antwort
+PL 2007-12-11: HTTP 0 drei Versuche ohne Antwort
+PL 2007-12-08: HTTP 0 drei Versuche ohne Antwort
+PL 2007-12-06: HTTP 0 drei Versuche ohne Antwort
+PL 2007-12-04: HTTP 0 drei Versuche ohne Antwort
+PL 2007-12-01: HTTP 0 drei Versuche ohne Antwort
+PL 2007-11-29: HTTP 0 drei Versuche ohne Antwort
+PL 2007-11-27: HTTP 0 drei Versuche ohne Antwort
+PL 2007-09-11: HTTP 0 drei Versuche ohne Antwort
+PL 2007-09-08: HTTP 0 drei Versuche ohne Antwort
+PL 2007-09-06: HTTP 0 drei Versuche ohne Antwort
+PL 2007-09-04: HTTP 0 drei Versuche ohne Antwort
+PL … 400/3585 (bis 2004-12-01)
+PL … 800/3585 (bis 2001-01-31)
+PL … 1200/3585 (bis 1997-04-02)
+PL … 1600/3585 (bis 1993-06-02)
+PL … 2000/3585 (bis 1987-06-06)
+PL … 2400/3585 (bis 1979-10-07)
+PL … 2800/3585 (bis 1972-02-06)
+PL: Zeitbudget erreicht nach 2880 von 3585 Tagen — weiter mit PL_AB=1970-08-23
+PL: 3075 amtliche Ziehungen an 2311 abgefragten Tagen, 569 Fehler
+
+== PL Lotto (1970-10-18 bis heute): ab 1970-10-18 — unsere Tage 2311, amtliche Tage 2311
+   Zahlen verschieden: 0
+   nur bei uns: 0
+   nur amtlich: 0
+   davon Tage ohne amtliche Zahlen: 0 (erste: )
