@@ -27,13 +27,20 @@
  * in run.mjs haengt die neuen nur an. Diese Datei darf NIE die Grundlage fuer
  * ein Neuanlegen der Datei sein.
  *
- * ⚠ ZAHLENBEREICH DER VIKING-ZAHL
+ * ⚠ ZAHLENBEREICH DER VIKING-ZAHL — ENTSCHIEDEN AM 16.11.2026
  * Die Schnittstelle erklaert ihn amtlich als 1..5 (`playingNumbers`,
- * ADDITIONAL_NUMBERS). Unsere Systemkonfiguration in index.html sagt `n2:8`.
- * Das ist ein offener Befund (docs/BEFUNDE_offen.md) und wird hier NICHT
- * entschieden: Dieser Abruf liest den Bereich bei jedem Lauf aus der Quelle
- * und richtet sich danach. Aendert die Lotterie ihn, aendert sich der Abruf
- * mit — ohne dass jemand eine Zahl im Code nachziehen muss.
+ * ADDITIONAL_NUMBERS). Die Systemkonfiguration in index.html sagte `n2:8`;
+ * das war der offene Befund. Er ist jetzt geschlossen: index.html steht auf
+ * `n2:5`, total = C(48,6)*5 = 61.357.560, und die zwei Ziehungen der alten
+ * Aera (26.05. und 02.06.2021, Viking 7 bzw. 6) sind aus dem Bestand
+ * genommen — wie bei der irischen 6/47-Aera: ein System zeigt EIN Format.
+ * Belegt wurde das nicht nur durch diese Schnittstelle, sondern unabhaengig
+ * durch die Daten selbst: Werte ueber 5 kommen NUR in jenen beiden ersten
+ * Ziehungen vor, danach in 253 Ziehungen nie wieder (Regelwechsel 09.06.2021).
+ * Dieser Abruf liest den Bereich weiterhin bei jedem Lauf aus der Quelle und
+ * richtet sich danach. Aendert die Lotterie ihn erneut, faellt es hier auf —
+ * dann muss `n2` und `total` in index.html nachgezogen werden, sonst stimmt
+ * keine Speicherplatz-Nummer dieses Systems mehr.
  */
 import { inRange } from "../lib/util.mjs";
 
