@@ -91,12 +91,44 @@ jobs:
           git config user.name  "lotto-data-bot"
           git config user.email "actions@users.noreply.github.com"
           if [ -n "$(git status --porcelain data/)" ]; then
+            # Geaenderte Dateien MERKEN, bevor git add den Status leert.
+            git status --porcelain data/ | awk '{print $NF}' > /tmp/geaendert.txt
             git add data/
             git commit -m "data: update draws $(date -u +%Y-%m-%d)"
             git push
           else
             echo "Keine Änderungen."
+            : > /tmp/geaendert.txt
           fi
+
+      # ── jsDelivr-Zwischenspeicher leeren (19.11.2026) ────────────────────
+      # Die App liest die Daten ueber cdn.jsdelivr.net. Dessen Kopfzeilen sagen
+      # `s-maxage=43200` — bis zu ZWOELF STUNDEN liefert der Dienst die alte
+      # Datei weiter, obwohl hier laengst die neue liegt. Der Tagesparameter
+      # `?v=JJJJ-MM-TT`, den die App anhaengt, hilft nicht: gemessen am
+      # 19.11.2026 antwortet jsDelivr mit und ohne Parameter aus demselben
+      # Zwischenspeicher (gleiches `Age`). Er ignoriert die Anfrage-Parameter.
+      #
+      # Folge ohne diesen Schritt: Eine Mittwochs-Ziehung steht um 04:51 im
+      # Repo und erscheint beim Nutzer erst am Abend — ohne Fehlermeldung,
+      # weil nichts fehlschlaegt. Genau dieser Fall trat am 19.11. auf.
+      #
+      # `|| true`: Ein Fehlschlag hier darf den Lauf NICHT rot faerben. Die
+      # Daten sind dann trotzdem im Repo, nur der Zwischenspeicher braucht
+      # laenger — das ist der Zustand von vorher, kein Rueckschritt.
+      - name: jsDelivr-Cache leeren
+        if: ${{ always() && inputs.probe != true && inputs.quellen != true }}
+        run: |
+          if [ ! -s /tmp/geaendert.txt ]; then
+            echo "Nichts geaendert, nichts zu leeren."
+            exit 0
+          fi
+          while read -r datei; do
+            [ -z "$datei" ] && continue
+            url="https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/${datei}"
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url" || echo 000)
+            echo "purge $datei -> HTTP $code"
+          done < /tmp/geaendert.txt
 
       # Wiederholung noetig? run.mjs schreibt die fehlenden Systeme nach run-failed.txt.
       # Ergebnis als Schritt-Ausgaben: fehlend, naechster Versuch (leer = keiner mehr).
