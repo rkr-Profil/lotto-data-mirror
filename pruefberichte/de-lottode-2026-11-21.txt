@@ -1,0 +1,14 @@
+Pruefung DE 6aus49 gegen lotto.de (amtlich)
+Zeitraum: 2022-01-01 bis 2026-11-18
+
+amtliche Ziehungstage abgefragt : 510
+davon mit Ziehung               : 510
+Zahlen identisch                : 510
+bei uns FEHLEND                 : 0
+ABWEICHENDE Zahlen              : 0
+bei uns ZUSAETZLICH             : 0
+Superzahl abweichend            : 0
+Superzahl bei uns nicht geführt : 0
+nicht abrufbar                  : 0
+
+OK — keine Abweichung.
